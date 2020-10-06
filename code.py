@@ -79,3 +79,42 @@ place_alea(map,3)
 place_alea(map,3)
 place_alea(map,3)
 print(map)
+
+#Partie 2
+
+def nb_pos(grille,bateau):
+    """
+    Compte le nombre de facons de placer un bateau dans la grille
+    Args:
+        grille (int[][]): map 2D 10x10
+        bateau (String): nom du bateau
+    """
+    cpt = 0
+    for i in range(N):
+        for j in range(N):
+            if (peut_placer(grille,bateau,(i,j),1)):
+                cpt+=1
+            if (peut_placer(grille,bateau,(i,j),2)):
+                cpt+=1
+    return cpt
+
+#Test nb_pos
+grille = grille_vide()
+print(nb_pos(grille,1))
+
+
+def nb_pos_list(grille,L):
+    if not L : return 0
+    if len(L)==1 : return nb_pos(grille,L[0])
+    else :
+        cpt = 0
+        for i in range(N):
+            for j in range(N):
+                g1 = np.copy(grille)
+                if place(g1,L[0],(i,j),1):  cpt = cpt +  nb_pos_list(g1,L[1:])
+                g2 = np.copy(grille)
+                if place(g2,L[0],(i,j),2): cpt = cpt + nb_pos_list(g2,L[1:])
+        return cpt
+
+#Test nb_pos_list
+print(nb_pos_list(grille,[1,1]))
