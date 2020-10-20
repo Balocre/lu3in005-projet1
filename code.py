@@ -2,6 +2,8 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 import itertools as itr
+import warnings
+from typing import Optional
 
 #Constantes
 N = 10
@@ -99,7 +101,7 @@ def eq(grille_a, grille_b):
     col_b = len(grille_b[0])
 
     if( (row_a != row_b) or (col_a != col_b) ): # si les matrices ne sont pas de tailel égale
-        raise ValueError("Les matrices ne sont pas de même taille")
+        warnings.warn("Les matrices ne sont pas de la même taille")
 
     if np.array_equal(grille_a, grille_b):
         return True
@@ -173,16 +175,17 @@ class Bataille:
     def __init__(self):
         self.grille = genere_grille()
 
-        self.carte_coups = np.zeros( (10, 10) )
+        # XXX: peut-etre passer en np.empty? si pas de pb lors de la comparaison
+        self.grille_decouverte = np.zeros( (10, 10) )
 
         self.liste_touche = []
 
-    def joue(self, position):
+    def joue(self, position) -> Optional[int]:
         (x, y) = position
-        if self.grille[x, y]:
-            self.carte_coups[x, y] = self.grille[x, y]
-            return True
-        return False
+        self.grille_decouverte[x][y] = self.grille[x][y] # on met à jour la carte de découverte
+        if self.grille[x, y]: # si il y a un bateau ou le joueur vise
+            return self.grille[x, y] # la fonction renvoie l'id du bateau touché
+        return None # la fonction indique que rien n'a été touché
 
     def victoire(self):
         if eq(self.grille, self.carte_coups):
@@ -210,7 +213,7 @@ class JoueurAlea(Joueur):
         random.shuffle(self.liste_coups)
 
     def joue(self):
-        pos = self.bataille.liste_coups.pop() # on sort la poisition jouée de la liste por ne pas répéter 2 fois un coup inutilement
+        pos = self.bataille.liste_coups.pop() # on pop la position jouée de la liste por ne pas répéter 2 fois un coup inutilement
         self.bataille.joue(pos)
     
 class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par défaut est aléatoire
@@ -220,6 +223,8 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
         if not pos: # si pas de position passée joue une case aléatoirement
             pos = self.bataille.liste_coups.pop()
         
+        # TODO:
+        # . vérifier que le bateau touché sur appel récursif est le même que touché initialement
         if self.bataille.joue(pos): # si ce coup touche teste les cases avoisinantes avec un appel récursif de la fonction
             (x, y) = pos
             if (axe == 'x'):
@@ -241,4 +246,47 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
             else: # si pas d'axe ni de direction rejoue le même coup avec axe et dir choisis aléatoirement
                 self.joue(pos, random.choice(['x', 'y']), random.choice(['-', '+']))
 
-class JoueurProba:
+def genere_mat_proba(id_bat):
+    r = np.empty( (5, 1) )
+    c = bateaux[id_bat]
+    for k in range(5):
+        r[k] = min(c, abs(k))
+    
+    r = np.tile(r, (1, 5))
+    r = r + np.transpose(r)
+    r = np.concatenate( (r, np.flip(r, 1)), 1 )
+    r = np.concatenate( (r, np.flip(r)))
+
+    return r
+
+class JoueurProba(Joueur):
+
+    def __init__(self):
+        Joueur.__init__(self)
+
+        tab_mat_p = []
+
+        mat_p_tot = np.zeros( (10,10) )
+
+        for i in range(5):
+            m = genere_mat_proba(i+1)
+            np.append(tab_mat_p, m)
+            mat_p_tot += m
+
+    def joue(self):
+        max_p = np.unravel_index(np.amax(self.mat_p_tot, self.mat_p_tot.shape))
+
+        i_max = -1
+        v_max = 0
+
+        for i in range(5):
+            if (self.tab_mat_p[i] > v_max):
+                v_max = self.tab_mat_p[i]
+                i_max = i
+
+        c = self.bataille.joue(max_p)
+        if (c):
+            p = self.tab_mat_p[c-1] # le -1 est là pour corriger l'index du tableau, car les id du dict des bateaux commence à 1
+            self.tab_mat_p[c-1] = 0
+            self.mat_prob_t 
+

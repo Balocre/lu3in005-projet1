@@ -29,7 +29,14 @@ print(r)
 
 print(nb_pos_list(genere_grille(),[1,1]))
 
-print("nb comp {}".format(comp_alea_grille(genere_grille())))
+# print("nb comp {}".format(comp_alea_grille(genere_grille())))
 
-print("approx grilles {}".format(approx_total_grille(10)))
+# print("approx grilles {}".format(approx_total_grille(10)))
 
+for i in range(1, 6):
+    affiche(genere_mat_proba(i))
+
+t = genere_mat_proba(5)
+max_p = np.unravel_index(np.argmax(t), t.shape)
+print("max_p = ({})".format(max_p))
+print("shape : {}".format(t.shape))
