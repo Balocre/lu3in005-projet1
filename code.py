@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import itertools as itr
 import warnings
 from typing import Optional
+import math
 
 #Constantes
 N = 10
@@ -188,7 +189,7 @@ class Bataille:
         return None # la fonction indique que rien n'a été touché
 
     def victoire(self):
-        if eq(self.grille, self.carte_coups):
+        if eq(self.grille, self.grille_decouverte):
             return True
         return False
 
@@ -246,47 +247,42 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
             else: # si pas d'axe ni de direction rejoue le même coup avec axe et dir choisis aléatoirement
                 self.joue(pos, random.choice(['x', 'y']), random.choice(['-', '+']))
 
-def genere_mat_proba(id_bat):
-    r = np.empty( (5, 1) )
-    c = bateaux[id_bat]
-    for k in range(5):
-        r[k] = min(c, abs(k))
+def genere_mat_proba(id_bat, pos=None):
     
-    r = np.tile(r, (1, 5))
-    r = r + np.transpose(r)
-    r = np.concatenate( (r, np.flip(r, 1)), 1 )
-    r = np.concatenate( (r, np.flip(r)))
+    if not pos:
+        r = np.empty( (5, 1) )
+        c = bateaux[id_bat]
+        for k in range(5):
+            r[k] = min(c, abs(k))
+    
+        r = np.tile(r, (1, 5))
+        r = r + np.transpose(r)
+        r = np.concatenate( (r, np.flip(r, 1)), 1 )
+        r = np.concatenate( (r, np.flip(r)))
+
+    else:
+        r = np.zeros( (10, 10) )
+        (x, y) = pos
+        for i in range(x-math.ceil(bateaux[id_bat]/2), x+math.ceil(bateaux[id_bat]/2)):
+            r[i][y] = 1
+        for j in range(y-math.ceil(bateaux[id_bat]/2), y+math.ceil(bateaux[id_bat]/2)):
+            r[x][j] = 1
 
     return r
 
 class JoueurProba(Joueur):
 
-    def __init__(self):
-        Joueur.__init__(self)
+    def __init__(self, bataille):
+        Joueur.__init__(self, bataille)
 
-        tab_mat_p = []
+        self.tab_mat_p = []
 
-        mat_p_tot = np.zeros( (10,10) )
+        self.mat_p_tot = np.zeros( (10,10) )
 
         for i in range(5):
             m = genere_mat_proba(i+1)
-            np.append(tab_mat_p, m)
-            mat_p_tot += m
+            np.append(self.tab_mat_p, m)
+            self.mat_p_tot += m
 
-    def joue(self):
-        max_p = np.unravel_index(np.amax(self.mat_p_tot, self.mat_p_tot.shape))
-
-        i_max = -1
-        v_max = 0
-
-        for i in range(5):
-            if (self.tab_mat_p[i] > v_max):
-                v_max = self.tab_mat_p[i]
-                i_max = i
-
-        c = self.bataille.joue(max_p)
-        if (c):
-            p = self.tab_mat_p[c-1] # le -1 est là pour corriger l'index du tableau, car les id du dict des bateaux commence à 1
-            self.tab_mat_p[c-1] = 0
-            self.mat_prob_t 
-
+    def joue(self, pos):
+        np.argwhere(np.argmax(self.mat_p_tot == self.mat_p_tot))

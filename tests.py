@@ -38,5 +38,8 @@ for i in range(1, 6):
 
 t = genere_mat_proba(5)
 max_p = np.unravel_index(np.argmax(t), t.shape)
+max_p = np.argwhere(t == np.argmax(t))
+print("argmax = {}".format(np.argmax(t
+)))
 print("max_p = ({})".format(max_p))
 print("shape : {}".format(t.shape))
