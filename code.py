@@ -228,37 +228,42 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
     def __init__(self, bataille):
         JoueurAlea.__init__(self, bataille)
 
+        # XXX: utiliser un tuple comme valeur serait certainement plus rapide, dans ce cas corriger les index
         self.coups_prep = OrderedDict([(i, dict.fromkeys(bateaux.keys, 1)) for i in self.liste_coups])
         self.coups_joue = OrderedDict()        
 
+    # TODO: 
+    # traiter l'épuisement des cases
     def joue(self):
 
         (x, y) = self.bataille.liste_coups.popitem()
-        if b := self.bataille.joue( (x, y) ): # si le coup touche on inspecte en priorité les cases autours de pos dans les prochains tours
+        if b := self.bataille.joue( (x, y) ): # si le coup touche
 
-            # on retire la posibilité de trouver b aux positions ou le bateau ne peux pas se trouver càd les positions potentielles au-dessus d'une position ayant déjà étée jouée avec un autre bateau que b ait été découvert ou dont on à éliminé la possibilité de contenir b
-            for (i, y) in [(i, y) for i in range(x, bateaux[b]-1, -1) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]: # pour les positions n'ayant pas été jouées et ne pouvant pas contenir b et les position ayant été jouées et contenant un autre bateau que b
+            # on retire la possibilité de trouver b aux positions potentielles "plus loin" qu'une position ayant déjà étée jouée avec un autre bateau que b ait été découvert ou dont on à éliminé la possibilité de contenir b
+            for (i, y) in [(i, y) for i in range(x-1, x-bateaux[b], -1) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]: # pour les positions n'ayant pas été jouées et ne pouvant pas contenir b et les position ayant été jouées et contenant un autre bateau que b
                 for (k, y) in [(k, y) for k in range(0, i) if (k, y) in self.coups_prep]: # pour les positions au-dessus d'une position matchée par l'expression ci-dessus
                     self.coups_prep[(i, y)][b] = 0 # on passe la valeur associée à la clé b à 0
-            for (i, y) in [(i, y) for i in range(x, bateaux[b]) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]:
+            for (i, y) in [(i, y) for i in range(x+1, x+bateaux[b]) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]:
                 for (k, y) in [(k, y) for k in range(10, i, -1) if (k, y) in self.coups_prep]:
                     self.coups_prep[(i, y)][b] = 0
-            for (x, j) in [(x, j) for j in range(y, bateaux[b]-1, -1) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
-                for (x, l) in [(x, l) for l in range(0, i) if (x, l) in self.coups_prep]:
-                    self.coups_prep[(x, l)][b] = 0
-            for (x, j) in [(x, j) for j in range(y, bateaux[b]) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
+            for (x, j) in [(x, j) for j in range(y+1, y+bateaux[b]) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
                 for (x, l) in [(x, l) for l in range(10, i, -1) if (x, l) in self.coups_prep]:
                     self.coups_prep[(x, l)][b] = 0
+            for (x, j) in [(x, j) for j in range(y-1, y-bateaux[b], -1) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
+                for (x, l) in [(x, l) for l in range(0, i) if (x, l) in self.coups_prep]:
+                    self.coups_prep[(x, l)][b] = 0
+            
 
-                
-            for c in itr.chain(
-                    ((i, y) for i in range(x, bateaux[b]) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]), \
-                    ((i, y) for i in range(x, bateaux[b]-1, -1) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]), \
-                    ((x, j) for j in range(y, bateaux[b]) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b]), \
-                    ((x, j) for j in range(y, bateaux[b]-1, -1) if (j, y) in self.coups_prep and self.coups_prep[(x, j)][b])
+            # on augemnte la priorité des coups sur les positions pouvant potentiellement contenir le bateau b i.e. une croix autours de la position du b touché
+            for c in itr.chain( # on itère sur des générateurs décrivant ces positions
+                    ((i, y) for i in range(x-1, x-bateaux[b], -1) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]),
+                    ((i, y) for i in range(x+1, x+bateaux[b]) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]), # les positions en dessous de (x, y)
+                    ((x, j) for j in range(y+1, y+bateaux[b]) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b]),
+                    ((x, j) for j in range(y-1, y-bateaux[b]-1, -1) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b])
                 ):
-                self.coups_prep.move_to_end(c)
-        else:
+                self.coups_prep.move_to_end(c) # on bouge les positions en fin du dict (elle seront donc appelées en premier sur un popitem)
+        else: # le coup n'a rien touché
+            # les beataux sont contigus
             if (pb := (x+1, y)) in self.coups_joue: 
                 for (i, y) in [(i, y) for i in range(x, -1, -1) if (i, y) in self.coups_prep]:
                     self.coups_prep[(i, y)][self.coups_joue[pb]] = 0
@@ -271,6 +276,8 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
             if (pg := (x, y-1)) in self.coups_joue: 
                 for (x, j) in [(x, j) for j in range(y, 10) if (x, j) in self.coups_prep]:
                     self.coups_prep[(x, j)][self.coups_joue[pg]] = 0
+    
+        return (x, y)
 
 def genere_mat_proba(taille_bat, pos=None):
     
