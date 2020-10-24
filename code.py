@@ -5,6 +5,7 @@ import itertools as itr
 import warnings
 from typing import Optional
 import math
+from collections import OrderedDict
 
 #Constantes
 N = 10
@@ -181,11 +182,14 @@ class Bataille:
 
         self.liste_touche = []
 
-    def joue(self, position) -> Optional[int]:
-        (x, y) = position
-        self.grille_decouverte[x][y] = self.grille[x][y] # on met à jour la carte de découverte
-        if self.grille[x, y]: # si il y a un bateau ou le joueur vise
-            return self.grille[x, y] # la fonction renvoie l'id du bateau touché
+        self.liste_coups = []
+
+    def joue(self, pos) -> Optional[int]:
+        self.liste_coups.append(pos)
+        self.grille_decouverte[pos] = self.grille[pos] # on met à jour la carte de découverte
+        if self.grille[pos]: # si il y a un bateau ou le joueur vise
+            self.liste_touche.append(pos)
+            return self.grille[pos] # la fonction renvoie l'id du bateau touché
         return None # la fonction indique que rien n'a été touché
 
     def victoire(self):
@@ -201,6 +205,8 @@ class Joueur:
     def __init__(self, bataille):
         self.bataille = bataille
 
+        self.coups_prep = None
+
     def joue(self):
         pass
 
@@ -210,50 +216,70 @@ class JoueurAlea(Joueur):
         Joueur.__init__(self, bataille)
         
         # génère une liste de position aléatoires dans la grille
-        self.liste_coups = itr.product(range(10), range(10)) 
-        random.shuffle(self.liste_coups)
+        self.coups_prep = itr.product(range(10), range(10)) 
+        random.shuffle(self.coups_prep)
 
     def joue(self):
-        pos = self.bataille.liste_coups.pop() # on pop la position jouée de la liste por ne pas répéter 2 fois un coup inutilement
+        pos = self.bataille.coups_prep.pop() # on pop la position jouée de la liste por ne pas répéter 2 fois un coup inutilement
         self.bataille.joue(pos)
     
 class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par défaut est aléatoire
 
-    def joue(self, pos=None, axe=None, direction=None):
-        
-        if not pos: # si pas de position passée joue une case aléatoirement
-            pos = self.bataille.liste_coups.pop()
-        
-        # TODO:
-        # . vérifier que le bateau touché sur appel récursif est le même que touché initialement
-        if self.bataille.joue(pos): # si ce coup touche teste les cases avoisinantes avec un appel récursif de la fonction
-            (x, y) = pos
-            if (axe == 'x'):
+    def __init__(self, bataille):
+        JoueurAlea.__init__(self, bataille)
 
-                if ( direction != '-' and (x+1) < 10 ): # si ce coup fait suite à un coup joué dans la direction - on reseterait la mm case -> boucle infinie 
-                    self.joue( (x+1, y), 'x', '+' )
+        self.coups_prep = OrderedDict([(i, dict.fromkeys(bateaux.keys, 1)) for i in self.liste_coups])
+        self.coups_joue = OrderedDict()        
 
-                if ( direction != '+' and (x-1)  >= 0 ):
-                    self.joue( (x-1, y) )
+    def joue(self):
 
-            elif (axe == 'y'):
+        (x, y) = self.bataille.liste_coups.popitem()
+        if b := self.bataille.joue( (x, y) ): # si le coup touche on inspecte en priorité les cases autours de pos dans les prochains tours
 
-                if ( direction != '-' and (y+1) < 10 ):
-                    self.joue( (x, y+1) )
+            # on retire la posibilité de trouver b aux positions ou le bateau ne peux pas se trouver càd les positions potentielles au-dessus d'une position ayant déjà étée jouée avec un autre bateau que b ait été découvert ou dont on à éliminé la possibilité de contenir b
+            for (i, y) in [(i, y) for i in range(x, bateaux[b]-1, -1) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]: # pour les positions n'ayant pas été jouées et ne pouvant pas contenir b et les position ayant été jouées et contenant un autre bateau que b
+                for (k, y) in [(k, y) for k in range(0, i) if (k, y) in self.coups_prep]: # pour les positions au-dessus d'une position matchée par l'expression ci-dessus
+                    self.coups_prep[(i, y)][b] = 0 # on passe la valeur associée à la clé b à 0
+            for (i, y) in [(i, y) for i in range(x, bateaux[b]) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]:
+                for (k, y) in [(k, y) for k in range(10, i, -1) if (k, y) in self.coups_prep]:
+                    self.coups_prep[(i, y)][b] = 0
+            for (x, j) in [(x, j) for j in range(y, bateaux[b]-1, -1) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
+                for (x, l) in [(x, l) for l in range(0, i) if (x, l) in self.coups_prep]:
+                    self.coups_prep[(x, l)][b] = 0
+            for (x, j) in [(x, j) for j in range(y, bateaux[b]) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
+                for (x, l) in [(x, l) for l in range(10, i, -1) if (x, l) in self.coups_prep]:
+                    self.coups_prep[(x, l)][b] = 0
 
-                if ( direction != '+' and (y-1)  >= 0 ):
-                    self.joue( (x, y-1) )
+                
+            for c in itr.chain(
+                    ((i, y) for i in range(x, bateaux[b]) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]), \
+                    ((i, y) for i in range(x, bateaux[b]-1, -1) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]), \
+                    ((x, j) for j in range(y, bateaux[b]) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b]), \
+                    ((x, j) for j in range(y, bateaux[b]-1, -1) if (j, y) in self.coups_prep and self.coups_prep[(x, j)][b])
+                ):
+                self.coups_prep.move_to_end(c)
+        else:
+            if (pb := (x+1, y)) in self.coups_joue: 
+                for (i, y) in [(i, y) for i in range(x, -1, -1) if (i, y) in self.coups_prep]:
+                    self.coups_prep[(i, y)][self.coups_joue[pb]] = 0
+            if (ph := (x-1, y)) in self.coups_joue: 
+                for (i, y) in [(i, y) for i in range(x, 10) if (i, y) in self.coups_prep]:
+                    self.coups_prep[(i, y)][self.coups_joue[ph]] = 0
+            if (pd := (x, y+1)) in self.coups_joue: 
+                for (x, j) in [(x, j) for j in range(y, -1, -1) if (x, j) in self.coups_prep]:
+                    self.coups_prep[(x, j)][self.coups_joue[pd]] = 0                 
+            if (pg := (x, y-1)) in self.coups_joue: 
+                for (x, j) in [(x, j) for j in range(y, 10) if (x, j) in self.coups_prep]:
+                    self.coups_prep[(x, j)][self.coups_joue[pg]] = 0
 
-            else: # si pas d'axe ni de direction rejoue le même coup avec axe et dir choisis aléatoirement
-                self.joue(pos, random.choice(['x', 'y']), random.choice(['-', '+']))
-
-def genere_mat_proba(id_bat, pos=None):
+def genere_mat_proba(taille_bat, pos=None):
     
     if not pos:
         r = np.empty( (5, 1) )
-        c = bateaux[id_bat]
+        c = taille_bat
         for k in range(5):
-            r[k] = min(c, abs(k))
+            r[k] = min(c, abs(k)) + 1
+            print("rk = {}".format(r[k]))
     
         r = np.tile(r, (1, 5))
         r = r + np.transpose(r)
@@ -263,26 +289,43 @@ def genere_mat_proba(id_bat, pos=None):
     else:
         r = np.zeros( (10, 10) )
         (x, y) = pos
-        for i in range(x-math.ceil(bateaux[id_bat]/2), x+math.ceil(bateaux[id_bat]/2)):
+        for i in range(x-math.ceil(taille_bat/2), x+math.ceil(taille_bat/2)):
             r[i][y] = 1
-        for j in range(y-math.ceil(bateaux[id_bat]/2), y+math.ceil(bateaux[id_bat]/2)):
+        for j in range(y-math.ceil(taille_bat/2), y+math.ceil(taille_bat/2)):
             r[x][j] = 1
+
+    r /= np.sum(r) # on divise chaque élément par le poids toal des élements
 
     return r
 
-class JoueurProba(Joueur):
+# class JoueurProba(Joueur):
 
-    def __init__(self, bataille):
-        Joueur.__init__(self, bataille)
+#     def __init__(self, bataille):
+#         Joueur.__init__(self, bataille)
 
-        self.tab_mat_p = []
+#         self.tab_mat_p = dict()
 
-        self.mat_p_tot = np.zeros( (10,10) )
+#         for id_bat, taille_bat in bateaux:
+#             self.tab_mat_p[id_bat] = genere_mat_proba(taille_bat)
+            
 
-        for i in range(5):
-            m = genere_mat_proba(i+1)
-            np.append(self.tab_mat_p, m)
-            self.mat_p_tot += m
+#     def joue(self):
 
-    def joue(self, pos):
-        np.argwhere(np.argmax(self.mat_p_tot == self.mat_p_tot))
+#         mat_p_tot = np.sum([m for m in self.tab_mat_p])
+
+#         pos = np.unravel_index(np.argmax(mat_p_tot, axis=None), mat_p_tot.shape) # on obtient la position du premier élément de proba max
+        
+#         id_bat_touche = self.bataille.joue(pos)
+
+#         if id_bat_touche and id_bat_touche not in self.bataille.liste_touche: # si le coup a touché mais le bateau n'était pas encore touché
+#             self.tab_mat_p[id_bat_touche] = genere_mat_proba(bateaux[id_bat_touche], pos)
+#             for i in self.tab_mat_p and i != id_bat_touche:
+#                 self.tab_mat_p[i][pos] = 0 # on passe à 0 la proba de toucher les bateaux en posisition pos
+#                 self.tab_mat_p[i] /= np.sum(self.tab_mat_p[i]) # on recalcul les probas des autres cases de contenir le bateau i
+
+#         elif id_bat_touche and id_bat_touche in self.bataille.liste_touche:
+#             (x, y) = pos
+#             for cx, cy in self.bataille.liste_coups and self.bataille.grille_decouvert[cx][cy] == id_bat_touche:
+#                 if (cx, y) == (x-1, y):
+
+#             self.tab_mat_p[id_bat_touche][pos] = 0
