@@ -6,6 +6,9 @@ import warnings
 from typing import Optional
 import math
 from collections import OrderedDict
+import sortedcontainers
+from sortedcontainers import SortedDict
+
 
 #Constantes
 N = 10
@@ -18,7 +21,7 @@ plateau = np.zeros( (10,10) )
 
 # Partie 1
 
-def peut_placer(grille, id_bat, position, direction):
+def peut_placer(grille, id_bat, pos, direction):
     """
     Teste s'il est possible de placer un bateau dans une direction souhaitee
     a la case position de la grille
@@ -26,30 +29,28 @@ def peut_placer(grille, id_bat, position, direction):
         grille (int[][]): r 2D 10x10
         bateau (String): nom du bateau
         position (int*int): position dans la matrice 
-        direction (int): 1 pour horizontal, 2 pour vertical
+        direction (String): \"+x\" pour horizontal-droite, \"+y\" pour vertical-bas
 
     Returns:
         [type]: [boolean]
     """
-    (k,l) = position
-    # version explitant numpy un peu mieux
-    #taille_bat = bateaux[id_bat]
-    #if (k < 0 or l < 0 or k + taille_bat >= N or l + taille_bat): return False # on vérifie que les coordonées sont dans la grille
-    #if (direction == 1): # horizontale vers la droite
-    #    if not np.all(grille[k, l:l+taille_bat]): return True # on vérifie que les cases de la grille sont libres
-    #elif (direction == 2): # verticale vers le bas
-    #    if not np.all(grille[k:k+taille_bat, l]): return True 
 
-    if (k >= N or l >= N): return False # on test voir si la position est dans la grille
-    if (direction == 1):
-        if (l + bateaux[id_bat] <= N):
-            return np.array_equal(grille[k,l:l + bateaux[id_bat]], np.zeros(bateaux[id_bat], dtype=int))
-    else :
-        if (k + bateaux[id_bat] <= N):
-            return np.array_equal(grille[k:k + bateaux[id_bat],l], np.zeros(bateaux[id_bat], dtype=int))
+    directions = set("+x", "+y")
+    if direction not in directions: raise ValueError("{} n'est pas une direction valide".format(dir))
+
+    (x, y) = pos
+    taille_bat = bateaux[id_bat]
+
+    if (x < 0) or (y < 0) or (x + taille_bat >= N) or (y + taille_bat >= N): return False # on vérifie que les coordonées sont dans la grille
+
+    if (direction == "+y"): # horizontale vers la droite
+       if not np.all(grille[x, y:y+taille_bat]): return True # on vérifie que les cases de la grille sont libres
+    elif (direction == "+x"): # verticale vers le bas
+       if not np.all(grille[x:x+taille_bat, y]): return True
     
+    return False
 
-def place(grille, bateau, position, direction):
+def place(grille, id_bat, pos, direction):
     """
     Place un bateau si c'est possible et retourne True sinon retourne False
     Args:
@@ -58,20 +59,20 @@ def place(grille, bateau, position, direction):
         position (int*int): position dans la matrice 
         direction (int): 1 pour horizontal, 2 pour vertical
     """
-    (k,l) = position
-    i=k
-    j=l
-    if (peut_placer(grille, bateau, position, direction)):
-        if (direction == 1):
-            for j in range(l, l+bateaux[bateau]):
-                grille[i][j] = bateau
-        elif (direction == 2):
-            for i in range(k, k+bateaux[bateau]):
-                grille[i][j] = bateau
-        else:
-            return False
+    (x, y) = pos
+    taille_bat = bateaux[id_bat]
+
+    if not peut_placer(grille, id_bat, pos, direction): return False
+    
+    if (direction == "+y"): 
+        grille[x, y:y+taille_bat] = id_bat
         return True
+    elif (direction == "+x"):
+        grille[x:x+taille_bat, y] = id_bat
+        return True
+
     return False
+
 
 def place_alea(grille,bateau):
     """
@@ -229,16 +230,16 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
         JoueurAlea.__init__(self, bataille)
 
         # XXX: utiliser un tuple comme valeur serait certainement plus rapide, dans ce cas corriger les index
-        self.coups_prep = OrderedDict([(i, dict.fromkeys(bateaux.keys, 1)) for i in self.liste_coups])
-        self.coups_joue = OrderedDict()        
+        self.coups_prep = OrderedDict([(i, dict.fromkeys(bateaux.keys, 1)) for i in self.liste_coups]) # ce dictionnaire contient la liste des coups préparés par le joueur, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur un dict ayant pour clé les id des bateaux et valeur 1 si on peut trouver le bateau correspondant à la position 0 sinon 
+        self.coups_joue = OrderedDict() # ce dict contient la liste des coups joués, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur l'id du bateau trouvé à la position ou None
 
     # TODO: 
     # traiter l'épuisement des cases
     def joue(self):
 
         (x, y) = self.bataille.liste_coups.popitem()
-        if b := self.bataille.joue( (x, y) ): # si le coup touche
-
+        b = self.bataille.joue( (x, y) ) # si le coup touche
+        if b:
             # on retire la possibilité de trouver b aux positions potentielles "plus loin" qu'une position ayant déjà étée jouée avec un autre bateau que b ait été découvert ou dont on à éliminé la possibilité de contenir b
             for (i, y) in [(i, y) for i in range(x-1, x-bateaux[b], -1) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]: # pour les positions n'ayant pas été jouées et ne pouvant pas contenir b et les position ayant été jouées et contenant un autre bateau que b
                 for (k, y) in [(k, y) for k in range(0, i) if (k, y) in self.coups_prep]: # pour les positions au-dessus d'une position matchée par l'expression ci-dessus
@@ -256,7 +257,8 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
 
             # on augemnte la priorité des coups sur les positions pouvant potentiellement contenir le bateau b i.e. une croix autours de la position du b touché
             for c in itr.chain( # on itère sur des générateurs décrivant ces positions
-                    ((i, y) for i in range(x-1, x-bateaux[b], -1) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]),
+                    # XXX: peu se faire avec une compréhension de liste
+                    ((i, y) for i in range(x-1, x-bateaux[b]-1, -1) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]),
                     ((i, y) for i in range(x+1, x+bateaux[b]) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]), # les positions en dessous de (x, y)
                     ((x, j) for j in range(y+1, y+bateaux[b]) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b]),
                     ((x, j) for j in range(y-1, y-bateaux[b]-1, -1) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b])
@@ -276,63 +278,75 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
             if (pg := (x, y-1)) in self.coups_joue: 
                 for (x, j) in [(x, j) for j in range(y, 10) if (x, j) in self.coups_prep]:
                     self.coups_prep[(x, j)][self.coups_joue[pg]] = 0
+
+        # TODO: nettoyer les coups prep en enlevant les coups dont la liste des possibilité est vide
+
+        self.coups_joue[(x, y)] = b
     
         return (x, y)
 
 def genere_mat_proba(taille_bat, pos=None):
     
     if not pos:
-        r = np.empty( (5, 1) )
-        c = taille_bat
-        for k in range(5):
-            r[k] = min(c, abs(k)) + 1
-            print("rk = {}".format(r[k]))
-    
-        r = np.tile(r, (1, 5))
-        r = r + np.transpose(r)
-        r = np.concatenate( (r, np.flip(r, 1)), 1 )
-        r = np.concatenate( (r, np.flip(r)))
+        r = np.empty( (10, 10) )
+        for i in range(0, 10):
+            for j in range(0, 10):
+                a = 5-abs(i-4) if (i-4 <= 0) else 10-i
+                b = 5-abs(j-4) if (j-4 <= 0) else 10-j
+                r[i][j] = min(a+b, 2*taille_bat)
 
     else:
         r = np.zeros( (10, 10) )
         (x, y) = pos
-        for i in range(x-math.ceil(taille_bat/2), x+math.ceil(taille_bat/2)):
-            r[i][y] = 1
-        for j in range(y-math.ceil(taille_bat/2), y+math.ceil(taille_bat/2)):
-            r[x][j] = 1
 
-    r /= np.sum(r) # on divise chaque élément par le poids toal des élements
+        for i in range(max(x-taille_bat+1, 0), min(x, 10-taille_bat+2)):
+            r[i:i+taille_bat+1, y] = [k+1 for k in r[i:i+taille_bat+1, y]]
+
+        for j in range(max(y-taille_bat+1, 0), min(y, 10-taille_bat+2)):
+            r[x, j:j+taille_bat+1] = [l+1 for l in r[x, j:j+taille_bat+1]]
 
     return r
 
-# class JoueurProba(Joueur):
+class JoueurProba(Joueur):
 
-#     def __init__(self, bataille):
-#         Joueur.__init__(self, bataille)
-
-#         self.tab_mat_p = dict()
-
-#         for id_bat, taille_bat in bateaux:
-#             self.tab_mat_p[id_bat] = genere_mat_proba(taille_bat)
-            
-
-#     def joue(self):
-
-#         mat_p_tot = np.sum([m for m in self.tab_mat_p])
-
-#         pos = np.unravel_index(np.argmax(mat_p_tot, axis=None), mat_p_tot.shape) # on obtient la position du premier élément de proba max
+    def __init__(self, bataille):
         
-#         id_bat_touche = self.bataille.joue(pos)
+        Joueur.__init__(self, bataille)
 
-#         if id_bat_touche and id_bat_touche not in self.bataille.liste_touche: # si le coup a touché mais le bateau n'était pas encore touché
-#             self.tab_mat_p[id_bat_touche] = genere_mat_proba(bateaux[id_bat_touche], pos)
-#             for i in self.tab_mat_p and i != id_bat_touche:
-#                 self.tab_mat_p[i][pos] = 0 # on passe à 0 la proba de toucher les bateaux en posisition pos
-#                 self.tab_mat_p[i] /= np.sum(self.tab_mat_p[i]) # on recalcul les probas des autres cases de contenir le bateau i
+        m = dict( map( lambda k : (k, genere_mat_proba(bateaux[k])), bateaux.keys() ) )
 
-#         elif id_bat_touche and id_bat_touche in self.bataille.liste_touche:
-#             (x, y) = pos
-#             for cx, cy in self.bataille.liste_coups and self.bataille.grille_decouvert[cx][cy] == id_bat_touche:
-#                 if (cx, y) == (x-1, y):
+        for id_bat, taille_bat in bateaux:
+            m += (genere_mat_proba(taille_bat), )
 
-#             self.tab_mat_p[id_bat_touche][pos] = 0
+        self.coups_prep = OrderedDict()
+        for (x, y) in [ pos for pos in itr.product(range(10), range(10)) ]:
+            self.coups_prep[(x, y)] = dict( map( lambda k: (k, m[k][x][y]), bateaux.keys() ) )
+
+        self.coups_joue = OrderedDict()
+        
+            
+        def joue():
+
+            self.coups_prep = OrderedDict( sorted( self.coups_prep.items(), key=lambda x: np.sum(x[1]) ) ) # on réorganise l'ordre du dictionnaire en fonction de la probabilité d'un coup de toucher un bateau
+
+            (x, y) = self.bataille.liste_coups.popitem()
+            
+            b = self.bataille.joue( (x, y) ) # si le coup touche
+            if b:
+                m = genere_mat_proba(bateaux[b], (x, y))
+
+                for (i,j), p in self.coups_prep:
+                    p[b] = m[i][j]
+            
+            else:
+                m = genere_mat_proba(bateaux[b], (x, y))
+
+                for (i,j), p in self.coups_prep:
+                    p[b] -= m[i][j]
+
+            for (i,j), p in self.coups_prep:
+                for bb in bateaux.keys():
+                    if bb != b:
+                        p[bb] = 0
+
+            return (x, y)
