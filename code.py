@@ -22,13 +22,12 @@ plateau = np.zeros( (10,10) )
 # Partie 1
 
 def peut_placer(grille, id_bat, pos, direction):
-    """
-    Teste s'il est possible de placer un bateau dans une direction souhaitee a la position pos de la grille.
+    """Teste s'il est possible de placer un bateau sur la grille de jeu.
 
     Args:
         grille (int[][]): Matrice représentant la grille de jeu.
-        bateau (String): Nom du bateau.
-        position (int*int): Position de l'origine du bateau dans la matrice.
+        bateau (int): Id du bateau.
+        position (int*int): Position de l'origine du bateau dans la grille de jeu.
         direction (String): Direction en fonctions des axes x (vertical) et y (horisontal) \"+x\" pour horizontal-droite, \"+y\" pour vertical-bas.
 
     Returns:
@@ -51,17 +50,16 @@ def peut_placer(grille, id_bat, pos, direction):
     return False
 
 def place(grille, id_bat, pos, direction) -> Optional[tuple(tuple())]:
-    """
-    Place un bateau si c'est possible et renvoie un tuple de coordonées correspondant à la position des pièces du bateau dans la grille ne renvoie None sinon.
+    """Place un bateau sur la grille de jeu si c'est possible.
 
     Args:
-        grille (int[][]): r 2D 10x10
-        bateau (String): nom du bateau
-        position (int*int): position dans la matrice 
-        direction (int): 1 pour horizontal, 2 pour vertical
+        grille (int[][]): Matrice représentant la grille de jeu.
+        bateau (int): Id du bateau.
+        position (int*int): Position dans la matrice. 
+        direction (String): Direction en fonctions des axes x (vertical) et y (horisontal) \"+x\" pour horizontal-droite, \"+y\" pour vertical-bas.
 
     Returns:
-        Optional[tuple(tuple())]
+        Optional[tuple(tuple())]: Tuple de coordonées si le bateau à été placé None sinon
     """
     (x, y) = pos
     taille_bat = bateaux[id_bat]
@@ -79,12 +77,15 @@ def place(grille, id_bat, pos, direction) -> Optional[tuple(tuple())]:
             return tuple( (i, y) for i in range(x, x+taille_bat) )
 
 
-def place_alea(grille,bateau):
-    """
-        Place un bateau de position et direction aleatoire dans la grille
+def place_alea(grille, bateau):
+    """Place un bateau à une position aléatoire de la grille de jeu
+
     Args:
-        grille (int[][]): r 2D 10x10
-        bateau (String): nom du bateau
+        grille (int[][]): Matrice représentant la grille de jeu.
+        bateau (int): Id du bateau.
+
+    Returns:
+        tuple(tuple()): Tuple de coordonées
     """
 
     while r := not place(grille, 
@@ -98,13 +99,25 @@ def place_alea(grille,bateau):
 
 
 def affiche(grille):
-    """Affiche l'état de la grille à l'aide de la librairie matplotlib"""
+    """Affiche l'état de la grille de jeu.
+    
+    Args:
+        grille (int[][]): Matrice représentant la grille de jeu.
+    """
     plt.matshow(grille)
     plt.waitforbuttonpress()
     plt.close()
 
 def eq(grille_a, grille_b):
-    """Compare 2 grilles et renvoie 1 si elles sont égales, 0 sinon, -1 si les grille ne sont pas comparables"""
+    """Compare 2 grilles pour l'égalité.
+    
+    Args:
+        grille_a (int[][]): Matrice représant la première grille de jeu.
+        grille_b (int[][]): Matrice représant la deuxièmé grille de jeu.
+
+    Returns:
+        bool: True si les grilles sont égales, False sinon.
+    """
     row_a = len(grille_a)
     col_a = len(grille_a[0])
 
@@ -120,6 +133,12 @@ def eq(grille_a, grille_b):
     return False
     
 def genere_grille():
+    """Génère une grille de jeu aléatoire.
+
+    Returns:
+        int[][]: Une matrice représantant une grille de jeu.
+
+    """
     grille = np.zeros( (10, 10) )
     for b in range(1, 5):
         place_alea(grille, b)
@@ -127,23 +146,28 @@ def genere_grille():
 
 # Partie 2
 
-def nb_pos(grille,bateau):
-    """
-    Compte le nombre de facons de placer un bateau dans la grille
+def nb_pos(grille, bateau):
+    """Compte le nombre de facons de placer un bateau dans la grille.
+
     Args:
-        grille (int[][]): r 2D 10x10
-        bateau (String): nom du bateau
+        grille (int[][]): Matrice représentant la grille de jeu.
+        bateau (String): id du bateau.
+
+    Returns:
+        int: Le nombre de positions dans lesquelles on peut placer le bateau.
     """
     cpt = 0
     for i in range(N):
         for j in range(N):
-            if (peut_placer(grille,bateau,(i,j),1)):
+            if (peut_placer(grille, bateau,(i,j),1)):
                 cpt+=1
-            if (peut_placer(grille,bateau,(i,j),2)):
+            if (peut_placer(grille, bateau,(i,j),2)):
                 cpt+=1
     return cpt
 
 def nb_pos_list(grille,L):
+    """Euh
+    """
     if not L : return 0
     if len(L)==1 : return nb_pos(grille,L[0])
     else :
@@ -157,6 +181,14 @@ def nb_pos_list(grille,L):
         return cpt
 
 def comp_alea_grille(grille):
+    """Compare la grille en entrée à des grilles générées aléatoirement jusqu'a trouver une grille de jeu égale.
+
+    Args:
+        grille (int[][]): Matrice représentant la grille de jeu.
+
+    Returns:
+        int: Le nombre de grilles générées avant de trouver une grille de jeu égale à l'entrée.
+    """
     i = 0
     while True:
         g = genere_grille()
@@ -171,6 +203,14 @@ def comp_alea_grille(grille):
     return i
 
 def approx_total_grilles(n):
+    """Calcul la moyenne sur n itérations du nombre de grilles générées par comp_alea_grille.
+
+    Args:
+        n (int): Nombre d'itérations de comp_alea_grille à éffectuer.
+    
+    Returns:
+        int: La moyenne du nombre d'itérations éfféctuées.
+    """
     r = np.array([])
     g = genere_grille()
     for i in range(n):
@@ -182,6 +222,12 @@ def approx_total_grilles(n):
 # Partie 3
 
 class Bataille:
+    """Représente une partie de bataille navale 
+
+    Attributes:
+        grille (int[][]): Matrice représentant la grille de jeu.
+        grille_decouverte (int[][]): Matrice représantant les positions découvertes par le joueur
+    """
 
     def __init__(self):
         self.grille = genere_grille()
@@ -189,19 +235,33 @@ class Bataille:
         # XXX: peut-etre passer en np.empty? si pas de pb lors de la comparaison
         self.grille_decouverte = np.zeros( (10, 10) )
 
-        self.liste_touche = []
-
-        self.liste_coups = []
 
     def joue(self, pos) -> Optional[int]:
-        self.liste_coups.append(pos)
+        """Joue un coup à la position pos
+
+        Args:
+            pos ((int, int)): La position à laquelle jouer le coup
+
+        Returns:
+            Optional[int]: L'id du bateau à la position jouée si il y'a un bateau, None sinon
+        """
         self.grille_decouverte[pos] = self.grille[pos] # on met à jour la carte de découverte
+
         if self.grille[pos]: # si il y a un bateau ou le joueur vise
-            self.liste_touche.append(pos)
             return self.grille[pos] # la fonction renvoie l'id du bateau touché
+
         return None # la fonction indique que rien n'a été touché
 
     def victoire(self):
+        """Vérifie si la partie est finie.
+
+        Cette fonction compare la grille de jeu et la grille de découverte et si grille_decouverte == grille
+        celà signifie que toutes les positions contenant des bateaux ont été jouées et par conséquent que
+        la partie est finie.
+
+        Returns:
+            bool: True si la partie est finie, False sinon.
+        """
         if eq(self.grille, self.grille_decouverte):
             return True
         return False
@@ -210,6 +270,18 @@ class Bataille:
         pass
     
 class Joueur:
+    """Représente un joueur de bataille navale
+
+    Note:
+        Cette classe ne sert que de super classe pour les classes en héritant et ne doit pas être instanciée.
+        Utiliser JoueurAlea, JoueurHeur ou JoueurProba.
+
+    Args:
+        bataille (Bataille): La bataille jouée par le joueur.
+
+    Attributes:
+        bataille (Bataille): La bataille jouée par le joueur.
+    """
 
     def __init__(self, bataille):
         self.bataille = bataille
@@ -217,22 +289,54 @@ class Joueur:
         self.coups_prep = None
 
     def joue(self):
+        """
+        Note:
+            Cette méthode ne sert que de placeholder.
+        """
         pass
 
 class JoueurAlea(Joueur):
+    """Représente un joueur ayant un comportement aléatoire.
+
+    Args:
+        bataille (Bataille): La bataille jouée par le joueur.
+
+    Attributes:
+        bataille (Bataille): La bataille jouée par le joueur.
+        coup_prep (list((int, int))): Liste des coups préparés par le joueur.
+            La liste de coup est mélangée après son instanciation.
+    """
 
     def __init__(self, bataille):
         Joueur.__init__(self, bataille)
         
         # génère une liste de position aléatoires dans la grille
-        self.coups_prep = itr.product(range(10), range(10)) 
+        self.coups_prep = list(itr.product(range(10), range(10))) 
         random.shuffle(self.coups_prep)
 
     def joue(self):
+        """Joue un coup de la bataille de manière aléatoire.
+        
+        Pop un élément de la liste de coup et le joue sur la bataille.
+        """
         pos = self.bataille.coups_prep.pop() # on pop la position jouée de la liste por ne pas répéter 2 fois un coup inutilement
         self.bataille.joue(pos)
     
 class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par défaut est aléatoire
+    """Représente un joueur séléctionnant ses coups à l'aide d'une heuristique.
+
+    Args:
+        bataille (Bataille): La bataille jouée par le joueur.
+
+    Attributes:
+        coup_prep (OrderedDict of (int, int): dict of int: int): Dictionnaire représantant la suite de coups qui seront joués par le joueur dans l'ordre.
+            Les clés du dictionnaire sont les couples représentant la position du coup et les valeurs sont des des dictionnaires dont les clés correspondent 
+            aux clés de la liste de bateau auxquelles sont associées 1 si le joeur s'attend à trouver le bateau correspondant à la position et 0 sinon
+            Le dictionnaire est initialisé à partir de coup_prep de la superclasse JoueurAlea, coup prep représente donc une suite de coups aléatoires
+            après initialisation.
+        
+        coup_joue (OrderedDict of (int, int): Optional[int]): Dictionnaire représantant les coups joués par le joueur   
+    """
 
     def __init__(self, bataille):
         JoueurAlea.__init__(self, bataille)
@@ -244,6 +348,22 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
     # TODO: 
     # traiter l'épuisement des cases
     def joue(self):
+        """Joue un coup de la bataille en utilisant une heuristique.
+
+        L'heuristique est la suivante:
+        Dans le cas par défaut joue un coup aléatoire de la bataille.
+        Si le coup touche: 
+            * élimine les positions rendues impossibles par la découverte du bateau touché à la position jouée - essentiellement les positions 
+              qui seraient coupées par une case déjà jouée ne contenant pas le bateau découvert.
+            * éxplore les cases pouvant contenir le bateau touché en croix autours de la position jouée avec pour distance max du centre de la 
+              croix la taille du bateau.
+        Sinon :
+            * vérifie si la cases autours de de la position jouée ont déjà été jouées et si un bateau y a été découvert, si oui élimine la possibilité de trouver ce
+              bateau dans les cases noon jouées de la direction opposée.
+
+        Returns:
+            (int, int): La position du coup joué.
+        """
 
         (x, y) = self.bataille.liste_coups.popitem()
         b = self.bataille.joue( (x, y) ) # si le coup touche
@@ -294,7 +414,20 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
         return (x, y)
 
 def genere_mat_proba(taille_bat, pos=None):
-    
+    """Génère une matrice de probabilité pour le bateau de taille donnée.
+
+    Cette fonction peut générer deux types de matrices de probabilité :
+        * Dans le cas où la position de l'origine du bateau n'est pas donnée, la matrice de proba générée correspond à la superposition de tous les bateaux possibles
+          sur la grille.
+        * Dans l'autre cas la matrice de proba correspond à la superposition des bateaux ayant une pièce placée sur l'origine
+
+    Args:
+        taille_bat (int): La taille du bateau pour lequel générer la matrice de proba
+        pos ((int, int), optional): La position de l'origine du bateau, None par défaut
+
+    Returns:
+        int[][]: La matrice de probabilité associée au bateau de taille passée en entrée
+    """
     if not pos:
         r = np.empty( (10, 10) )
         for i in range(0, 10):
@@ -316,6 +449,17 @@ def genere_mat_proba(taille_bat, pos=None):
     return r
 
 class JoueurProba(Joueur):
+    """Représente un joueur qui choisi ses coups en fcontion des probabilités de toucher un bateau
+
+    Args:
+        bataille (Bataille): La bataille jouée par le joueur.
+
+    Attributes:
+        bataille (Bataille): La bataille jouée par le joueur.
+        coup_prep (OrderedDict of (int, int): dict of int: int): Dictionnaire représantant la suite de coups qui seront joués par le joueur dans l'ordre.
+            la suite de coup est ordonée en fonction des probabilités associées au coup avant de jouer un coup sur la bataille
+        coup_joue (OrderedDict of (int, int): Optional[int]): Dictionnaire représantant les coups joués par le joueur 
+    """
 
     def __init__(self, bataille):
         
@@ -334,6 +478,11 @@ class JoueurProba(Joueur):
         
             
         def joue():
+            """Joue un coup de la bataille parmis les coups ayant la plus grande proba de toucher un bateau
+
+            Returns:
+                (int, int): La position du coup joué.
+            """
 
             self.coups_prep = OrderedDict( sorted( self.coups_prep.items(), key=lambda x: np.sum(x[1]) ) ) # on réorganise l'ordre du dictionnaire en fonction de la probabilité d'un coup de toucher un bateau
 
