@@ -23,16 +23,16 @@ plateau = np.zeros( (10,10) )
 
 def peut_placer(grille, id_bat, pos, direction):
     """
-    Teste s'il est possible de placer un bateau dans une direction souhaitee
-    a la case position de la grille
+    Teste s'il est possible de placer un bateau dans une direction souhaitee a la position pos de la grille.
+
     Args:
-        grille (int[][]): r 2D 10x10
-        bateau (String): nom du bateau
-        position (int*int): position dans la matrice 
-        direction (String): \"+x\" pour horizontal-droite, \"+y\" pour vertical-bas
+        grille (int[][]): Matrice représentant la grille de jeu.
+        bateau (String): Nom du bateau.
+        position (int*int): Position de l'origine du bateau dans la matrice.
+        direction (String): Direction en fonctions des axes x (vertical) et y (horisontal) \"+x\" pour horizontal-droite, \"+y\" pour vertical-bas.
 
     Returns:
-        [type]: [boolean]
+        bool: True si le bateau peut être placé, False sinon.
     """
 
     directions = set("+x", "+y")
@@ -50,28 +50,33 @@ def peut_placer(grille, id_bat, pos, direction):
     
     return False
 
-def place(grille, id_bat, pos, direction):
+def place(grille, id_bat, pos, direction) -> Optional[tuple(tuple())]:
     """
-    Place un bateau si c'est possible et retourne True sinon retourne False
+    Place un bateau si c'est possible et renvoie un tuple de coordonées correspondant à la position des pièces du bateau dans la grille ne renvoie None sinon.
+
     Args:
         grille (int[][]): r 2D 10x10
         bateau (String): nom du bateau
         position (int*int): position dans la matrice 
         direction (int): 1 pour horizontal, 2 pour vertical
+
+    Returns:
+        Optional[tuple(tuple())]
     """
     (x, y) = pos
     taille_bat = bateaux[id_bat]
 
-    if not peut_placer(grille, id_bat, pos, direction): return False
+    if not peut_placer(grille, id_bat, pos, direction): 
+        return None
     
-    if (direction == "+y"): 
-        grille[x, y:y+taille_bat] = id_bat
-        return True
-    elif (direction == "+x"):
-        grille[x:x+taille_bat, y] = id_bat
-        return True
+    else:
+        if (direction == "+y"): 
+            grille[x, y:y+taille_bat] = id_bat
+            return tuple( (x, j) for j in range(y, y+taille_bat) )
 
-    return False
+        elif (direction == "+x"):
+            grille[x:x+taille_bat, y] = id_bat
+            return tuple( (i, y) for i in range(x, x+taille_bat) )
 
 
 def place_alea(grille,bateau):
@@ -81,12 +86,15 @@ def place_alea(grille,bateau):
         grille (int[][]): r 2D 10x10
         bateau (String): nom du bateau
     """
-    b=False
-    while not b:
-        position = (random.randint(0,9),random.randint(0,9))
-        direction = random.randint(1,2)
-        b = place(grille,bateau,position,direction)
-    return b
+
+    while r := not place(grille, 
+        bateau, 
+        random.randint(0, 9, 2), 
+        random.choice( set("+x", "+y")) 
+        ):
+        continue
+
+    return r
 
 
 def affiche(grille):
