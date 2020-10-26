@@ -248,7 +248,7 @@ class Bataille:
             Optional[int]: L'id du bateau à la position jouée si il y'a un bateau, None sinon
         """
 
-        (x ,y) = pos
+        (x, y) = pos
 
         if (x < 0) or (y < 0) or (x > 9) or (y > 9):
             raise ValueError("la position spécifiée n'est pas valide")
@@ -326,9 +326,19 @@ class JoueurAlea(Joueur):
         """Joue un coup de la bataille de manière aléatoire.
         
         Pop un élément de la liste de coup et le joue sur la bataille.
+
+        Returns:
+            (int, int): La position du coup joué
         """
-        pos = self.bataille.coups_prep.pop() # on pop la position jouée de la liste por ne pas répéter 2 fois un coup inutilement
+
+        if len(self.coups_prep) == 0:
+            warnings.warn("Le joueur ne peux plus jouer, tout ses coups sont épuisés")
+            return None
+
+        pos = self.coups_prep.pop() # on pop la position jouée de la liste por ne pas répéter 2 fois un coup inutilement
         self.bataille.joue(pos)
+
+        return pos
     
 class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par défaut est aléatoire
     """Représente un joueur séléctionnant ses coups à l'aide d'une heuristique.
@@ -350,7 +360,7 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
         JoueurAlea.__init__(self, bataille)
 
         # XXX: utiliser un tuple comme valeur serait certainement plus rapide, dans ce cas corriger les index
-        self.coups_prep = OrderedDict([(i, dict.fromkeys(self.bataille.bateaux.keys(), 1)) for i in self.liste_coups]) # ce dictionnaire contient la liste des coups préparés par le joueur, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur un dict ayant pour clé les id des bateaux et valeur 1 si on peut trouver le bateau correspondant à la position 0 sinon 
+        self.coups_prep = OrderedDict([(i, dict.fromkeys(self.bataille.bateaux.keys(), 1)) for i in self.coups_prep]) # ce dictionnaire contient la liste des coups préparés par le joueur, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur un dict ayant pour clé les id des bateaux et valeur 1 si on peut trouver le bateau correspondant à la position 0 sinon 
         self.coups_joue = OrderedDict() # ce dict contient la liste des coups joués, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur l'id du bateau trouvé à la position ou None
 
     # TODO: 
@@ -373,22 +383,30 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
             (int, int): La position du coup joué.
         """
 
-        (x, y) = self.bataille.liste_coups.popitem()
+        if not self.coups_prep:
+            warnings.warn("Le joueur ne peux plus jouer, tout ses coups sont épuisés")
+            return None
+
+        x, y = self.coups_prep.popitem()[0]
         b = self.bataille.joue( (x, y) ) # si le coup touche
         if b:
             # on retire la possibilité de trouver b aux positions potentielles "plus loin" qu'une position ayant déjà étée jouée avec un autre bateau que b ait été découvert ou dont on à éliminé la possibilité de contenir b
             for (i, y) in [(i, y) for i in range(x-1, x-self.bataille.bateaux[b], -1) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]: # pour les positions n'ayant pas été jouées et ne pouvant pas contenir b et les position ayant été jouées et contenant un autre bateau que b
                 for (k, y) in [(k, y) for k in range(0, i) if (k, y) in self.coups_prep]: # pour les positions au-dessus d'une position matchée par l'expression ci-dessus
-                    self.coups_prep[(i, y)][b] = 0 # on passe la valeur associée à la clé b à 0
+                    if (i , y) in self.coups_prep:
+                        self.coups_prep[(i, y)][b] = 0 # on passe la valeur associée à la clé b à 0
             for (i, y) in [(i, y) for i in range(x+1, x+self.bataille.bateaux[b]) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]:
                 for (k, y) in [(k, y) for k in range(10, i, -1) if (k, y) in self.coups_prep]:
-                    self.coups_prep[(i, y)][b] = 0
+                    if (i , y) in self.coups_prep:
+                        self.coups_prep[(i, y)][b] = 0
             for (x, j) in [(x, j) for j in range(y+1, y+self.bataille.bateaux[b]) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
-                for (x, l) in [(x, l) for l in range(10, i, -1) if (x, l) in self.coups_prep]:
-                    self.coups_prep[(x, l)][b] = 0
+                for (x, l) in [(x, l) for l in range(10, j, -1) if (x, l) in self.coups_prep]:
+                    if (x , l) in self.coups_prep:
+                        self.coups_prep[(x, l)][b] = 0
             for (x, j) in [(x, j) for j in range(y-1, y-self.bataille.bateaux[b], -1) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
-                for (x, l) in [(x, l) for l in range(0, i) if (x, l) in self.coups_prep]:
-                    self.coups_prep[(x, l)][b] = 0
+                for (x, l) in [(x, l) for l in range(0, j) if (x, l) in self.coups_prep]:
+                    if (x , l) in self.coups_prep:
+                        self.coups_prep[(x, l)][b] = 0
             
 
             # on augemnte la priorité des coups sur les positions pouvant potentiellement contenir le bateau b i.e. une croix autours de la position du b touché
