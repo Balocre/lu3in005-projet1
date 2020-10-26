@@ -1,74 +1,85 @@
 from code import *
-import numpy as np
+import unittest
 
-bateaux = {1:5, 2:4, 3:3, 4:3, 5:2}
+class TestPartie1(unittest.TestCase):
 
-g1 = np.matrix([[0,0],[0,0]])
-g2 = np.matrix([[0,0],[0,0]])
+    def setUp(self):
+        self.bateaux = {1:5, 2:4, 3:3, 4:3, 5:2}
 
-print("g1 == g2? {}".format(eq(g1,g2)))
+        self.grille_vierge = np.zeros( (10,10) )
 
-g1 = np.matrix([[0,0],[0,0]])
-g2 = np.matrix([[1,0],[0,0]])
+        self.grille = np.zeros( (10, 10) )
+        self.grille[1, 2:5] = 4
+        self.grille[3, 3:7] = 2
+        self.grille[5:8, 4] = 3
+        self.grille[7:9, 1] = 5
+        self.grille[5:10, 9] = 1
+        #[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        # [0, 0, 4, 4, 4, 0, 0, 0, 0, 0],
+        # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        # [0, 0, 0, 2, 2, 2, 2, 0, 0, 0],
+        # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        # [0, 0, 0, 0, 3, 0, 0, 0, 0, 1],
+        # [0, 0, 0, 0, 3, 0, 0, 0, 0, 1],
+        # [0, 5, 0, 0, 3, 0, 0, 0, 0, 1],
+        # [0, 5, 0, 0, 0, 0, 0, 0, 0, 1],
+        # [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]]
 
-print("g1 == g2? {}".format(eq(g1,g2)))
+    def test_peut_placer(self):
+        self.assertTrue(peut_placer(self.bateaux, self.grille_vierge, 1, (2, 2), "+x"))
+        self.assertFalse(peut_placer(self.bateaux, self.grille_vierge, 1, (10, 10), "+y"))
+        self.assertFalse(peut_placer(self.bateaux, self.grille, 1, (5, 9), "+x"))
 
-g1 = np.matrix([[0,0],[0,0]])
-g2 = np.matrix([[0,0],[0,0],[0,0]])
+    def test_place(self):
+        self.assertEqual(place(self.bateaux, self.grille_vierge, 1, (0, 0), "+x"), ((0, 0), (1, 0), (2, 0), (3, 0), (4, 0)))
+        self.assertIsNone(place(self.bateaux, self.grille, 1, (0, 3), "+x"))
 
-print("g1 == g2? {}".format(eq(g1,g2)))
+    def test_place_alea(self):
+        self.assertFalse(place_alea(self.bateaux, self.grille_vierge, 1))
 
-affiche(genere_grille())
-
-print(nb_pos(genere_grille(),1))
-
-r = plateau
-place(r,1,(0,5),1)
-place_alea(r,3)
-place_alea(r,3)
-place_alea(r,3)
-print(r)
-
-print(nb_pos_list(genere_grille(),[1,1]))
-
-# print("nb comp {}".format(comp_alea_grille(genere_grille())))
-
-# print("approx grilles {}".format(approx_total_grille(10)))
-
-for i in range(1, 6):
-    affiche(genere_mat_proba(bateaux[i]))
-
-affiche(genere_mat_proba(4, (2,2)))
-
-t = genere_mat_proba(5)
-max_p = np.unravel_index(np.argmax(t, axis=None), t.shape)
-print("max_p = ({})".format(max_p))
-
-print("test : {}".format(t[(1,1)]))
-
-
-m = ()
-
-for taille_bat in range(2, 6):
-    m += (genere_mat_proba(taille_bat),)
-
-    t = OrderedDict()
-    for x, y in [ pos for pos in itr.product(range(10), range(10)) ]:
-        t[(x, y)] = [p[x][y] for p in m]
-
-
-    t = SortedDict(lambda x: np.sum(x), t)
-
-    print("{}".format(list(t)[0]))
-    print("{}".format(list(t)[1]))
-    print("=====================")
+    def test_affiche(self):
+        affiche(self.grille)
     
-while t:
-    print("{}".format(np.sum(t.popitem()[1])))
+    def test_eq(self):
+        self.assertFalse(eq(self.grille, self.grille_vierge))
+        self.assertTrue(eq(self.grille, self.grille ))
 
-for b in bateaux.keys():
-    print("{}".format(b))
+    def test_genere_grille(self):
+        genere_grille(self.bateaux)
 
-m = dict( map( lambda k : (k, genere_mat_proba(bateaux[k])), bateaux.keys() ) )
+class TestBataille(unittest.TestCase):
 
-print("{}".format(m))
+    def setUp(self):
+        self.bateaux = {1:5, 2:4, 3:3, 4:3, 5:2}
+
+        self.grille = np.zeros( (10,10) )
+
+        self.grille[1, 2:5] = 4
+        self.grille[3, 3:7] = 2
+        self.grille[5:8, 4] = 3
+        self.grille[7:9, 1] = 5
+        self.grille[5:10, 9] = 1
+        #[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        # [0, 0, 4, 4, 4, 0, 0, 0, 0, 0],
+        # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        # [0, 0, 0, 2, 2, 2, 2, 0, 0, 0],
+        # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        # [0, 0, 0, 0, 3, 0, 0, 0, 0, 1],
+        # [0, 0, 0, 0, 3, 0, 0, 0, 0, 1],
+        # [0, 5, 0, 0, 3, 0, 0, 0, 0, 1],
+        # [0, 5, 0, 0, 0, 0, 0, 0, 0, 1],
+        # [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]]
+
+        self.bataille_random = Bataille(self.bateaux)
+
+        self.bataille_init = Bataille(self.bateaux, self.grille)
+
+    def test_joue(self):
+            self.assertEqual(self.bataille_init.joue( (1, 2) ), 4)
+            with self.assertRaises(ValueError):
+                self.bataille_init.joue( (-1, -1) )
+        
+
+
+if __name__ == '__main__':
+    unittest.main()

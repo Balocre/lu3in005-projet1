@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import itertools as itr
 import warnings
 from typing import Optional
+from typing import Tuple
 import math
 from collections import OrderedDict
 import sortedcontainers
@@ -21,7 +22,7 @@ plateau = np.zeros( (10,10) )
 
 # Partie 1
 
-def peut_placer(grille, id_bat, pos, direction):
+def peut_placer(bateaux, grille, id_bat, pos, direction):
     """Teste s'il est possible de placer un bateau sur la grille de jeu.
 
     Args:
@@ -34,22 +35,23 @@ def peut_placer(grille, id_bat, pos, direction):
         bool: True si le bateau peut être placé, False sinon.
     """
 
-    directions = set("+x", "+y")
-    if direction not in directions: raise ValueError("{} n'est pas une direction valide".format(dir))
+    directions = frozenset(["+x", "+y"])
+    if direction not in directions: raise ValueError("{} n'est pas une direction valide".format(direction))
 
-    (x, y) = pos
+    x, y = pos
     taille_bat = bateaux[id_bat]
 
     if (x < 0) or (y < 0) or (x + taille_bat >= N) or (y + taille_bat >= N): return False # on vérifie que les coordonées sont dans la grille
 
     if (direction == "+y"): # horizontale vers la droite
        if not np.all(grille[x, y:y+taille_bat]): return True # on vérifie que les cases de la grille sont libres
+
     elif (direction == "+x"): # verticale vers le bas
-       if not np.all(grille[x:x+taille_bat, y]): return True
+       if not np.count_nonzero(grille[x:x+taille_bat, y]): return True
     
     return False
 
-def place(grille, id_bat, pos, direction) -> Optional[tuple(tuple())]:
+def place(bateaux, grille, id_bat, pos, direction) -> Optional[Tuple[Tuple[int, int], ...]]:
     """Place un bateau sur la grille de jeu si c'est possible.
 
     Args:
@@ -61,10 +63,10 @@ def place(grille, id_bat, pos, direction) -> Optional[tuple(tuple())]:
     Returns:
         Optional[tuple(tuple())]: Tuple de coordonées si le bateau à été placé None sinon
     """
-    (x, y) = pos
+    x, y = pos
     taille_bat = bateaux[id_bat]
 
-    if not peut_placer(grille, id_bat, pos, direction): 
+    if not peut_placer(bateaux, grille, id_bat, pos, direction): 
         return None
     
     else:
@@ -77,7 +79,7 @@ def place(grille, id_bat, pos, direction) -> Optional[tuple(tuple())]:
             return tuple( (i, y) for i in range(x, x+taille_bat) )
 
 
-def place_alea(grille, bateau):
+def place_alea(bateaux, grille, bateau):
     """Place un bateau à une position aléatoire de la grille de jeu
 
     Args:
@@ -88,10 +90,11 @@ def place_alea(grille, bateau):
         tuple(tuple()): Tuple de coordonées
     """
 
-    while r := not place(grille, 
+    while r := not place(bateaux, 
+        grille, 
         bateau, 
-        random.randint(0, 9, 2), 
-        random.choice( set("+x", "+y")) 
+        (random.randint(0, 9), random.randint(0, 9)), 
+        random.sample( frozenset(["+x", "+y"]), 1)[0]
         ):
         continue
 
@@ -125,14 +128,14 @@ def eq(grille_a, grille_b):
     col_b = len(grille_b[0])
 
     if( (row_a != row_b) or (col_a != col_b) ): # si les matrices ne sont pas de tailel égale
-        warnings.warn("Les matrices ne sont pas de la même taille")
+        warnings.warn("Les matrices entrées ne sont pas de la même taille")
 
     if np.array_equal(grille_a, grille_b):
         return True
 
     return False
     
-def genere_grille():
+def genere_grille(bateaux):
     """Génère une grille de jeu aléatoire.
 
     Returns:
@@ -140,13 +143,13 @@ def genere_grille():
 
     """
     grille = np.zeros( (10, 10) )
-    for b in range(1, 5):
-        place_alea(grille, b)
+    for b in bateaux.keys():
+        place_alea(bateaux, grille, b)
     return grille
 
 # Partie 2
 
-def nb_pos(grille, bateau):
+def nb_pos(bateaux, grille, bateau):
     """Compte le nombre de facons de placer un bateau dans la grille.
 
     Args:
@@ -159,13 +162,13 @@ def nb_pos(grille, bateau):
     cpt = 0
     for i in range(N):
         for j in range(N):
-            if (peut_placer(grille, bateau,(i,j),1)):
+            if (peut_placer(bateaux, grille, bateau,(i,j),1)):
                 cpt+=1
-            if (peut_placer(grille, bateau,(i,j),2)):
+            if (peut_placer(bateaux, grille, bateau,(i,j),2)):
                 cpt+=1
     return cpt
 
-def nb_pos_list(grille,L):
+def nb_pos_list(grille, L):
     """Euh
     """
     if not L : return 0
@@ -180,7 +183,7 @@ def nb_pos_list(grille,L):
                 if place(g2,L[0],(i,j),2): cpt = cpt + nb_pos_list(g2,L[1:])
         return cpt
 
-def comp_alea_grille(grille):
+def comp_alea_grille(bateaux, grille):
     """Compare la grille en entrée à des grilles générées aléatoirement jusqu'a trouver une grille de jeu égale.
 
     Args:
@@ -191,18 +194,12 @@ def comp_alea_grille(grille):
     """
     i = 0
     while True:
-        g = genere_grille()
-        r = eq(grille, g)
-        affiche(grille)
-        affiche(g)
         i+=1
-        # debug
-        print("i={} r={}".format(i, r))
-        if (r ==  1):
+        if eq(grille, genere_grille(bateaux)):
             break
     return i
 
-def approx_total_grilles(n):
+def approx_total_grilles(bateaux, n):
     """Calcul la moyenne sur n itérations du nombre de grilles générées par comp_alea_grille.
 
     Args:
@@ -212,9 +209,9 @@ def approx_total_grilles(n):
         int: La moyenne du nombre d'itérations éfféctuées.
     """
     r = np.array([])
-    g = genere_grille()
+    g = genere_grille(bateaux)
     for i in range(n):
-        np.append(r, comp_alea_grille(g))
+        np.append(r, comp_alea_grille(bateaux, g))
 
     return np.average(r)
 
@@ -229,11 +226,16 @@ class Bataille:
         grille_decouverte (int[][]): Matrice représantant les positions découvertes par le joueur
     """
 
-    def __init__(self):
-        self.grille = genere_grille()
+    def __init__(self, bateaux, grille=None):
+        if grille is not None:
+            self.grille = grille 
+        else:
+            self.grille = genere_grille(bateaux)
 
         # XXX: peut-etre passer en np.empty? si pas de pb lors de la comparaison
         self.grille_decouverte = np.zeros( (10, 10) )
+
+        self.bateaux = bateaux
 
 
     def joue(self, pos) -> Optional[int]:
@@ -245,6 +247,12 @@ class Bataille:
         Returns:
             Optional[int]: L'id du bateau à la position jouée si il y'a un bateau, None sinon
         """
+
+        (x ,y) = pos
+
+        if (x < 0) or (y < 0) or (x > 9) or (y > 9):
+            raise ValueError("la position spécifiée n'est pas valide")
+
         self.grille_decouverte[pos] = self.grille[pos] # on met à jour la carte de découverte
 
         if self.grille[pos]: # si il y a un bateau ou le joueur vise
@@ -342,7 +350,7 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
         JoueurAlea.__init__(self, bataille)
 
         # XXX: utiliser un tuple comme valeur serait certainement plus rapide, dans ce cas corriger les index
-        self.coups_prep = OrderedDict([(i, dict.fromkeys(bateaux.keys, 1)) for i in self.liste_coups]) # ce dictionnaire contient la liste des coups préparés par le joueur, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur un dict ayant pour clé les id des bateaux et valeur 1 si on peut trouver le bateau correspondant à la position 0 sinon 
+        self.coups_prep = OrderedDict([(i, dict.fromkeys(self.bataille.bateaux.keys(), 1)) for i in self.liste_coups]) # ce dictionnaire contient la liste des coups préparés par le joueur, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur un dict ayant pour clé les id des bateaux et valeur 1 si on peut trouver le bateau correspondant à la position 0 sinon 
         self.coups_joue = OrderedDict() # ce dict contient la liste des coups joués, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur l'id du bateau trouvé à la position ou None
 
     # TODO: 
@@ -369,16 +377,16 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
         b = self.bataille.joue( (x, y) ) # si le coup touche
         if b:
             # on retire la possibilité de trouver b aux positions potentielles "plus loin" qu'une position ayant déjà étée jouée avec un autre bateau que b ait été découvert ou dont on à éliminé la possibilité de contenir b
-            for (i, y) in [(i, y) for i in range(x-1, x-bateaux[b], -1) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]: # pour les positions n'ayant pas été jouées et ne pouvant pas contenir b et les position ayant été jouées et contenant un autre bateau que b
+            for (i, y) in [(i, y) for i in range(x-1, x-self.bataille.bateaux[b], -1) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]: # pour les positions n'ayant pas été jouées et ne pouvant pas contenir b et les position ayant été jouées et contenant un autre bateau que b
                 for (k, y) in [(k, y) for k in range(0, i) if (k, y) in self.coups_prep]: # pour les positions au-dessus d'une position matchée par l'expression ci-dessus
                     self.coups_prep[(i, y)][b] = 0 # on passe la valeur associée à la clé b à 0
-            for (i, y) in [(i, y) for i in range(x+1, x+bateaux[b]) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]:
+            for (i, y) in [(i, y) for i in range(x+1, x+self.bataille.bateaux[b]) if ( ( (i, y) in self.coups_prep and not self.coups_prep[(i, y)][b] ) or ( (i, y) in self.coups_joue and self.coups_joue[(i, y)] != b ))]:
                 for (k, y) in [(k, y) for k in range(10, i, -1) if (k, y) in self.coups_prep]:
                     self.coups_prep[(i, y)][b] = 0
-            for (x, j) in [(x, j) for j in range(y+1, y+bateaux[b]) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
+            for (x, j) in [(x, j) for j in range(y+1, y+self.bataille.bateaux[b]) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
                 for (x, l) in [(x, l) for l in range(10, i, -1) if (x, l) in self.coups_prep]:
                     self.coups_prep[(x, l)][b] = 0
-            for (x, j) in [(x, j) for j in range(y-1, y-bateaux[b], -1) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
+            for (x, j) in [(x, j) for j in range(y-1, y-self.bataille.bateaux[b], -1) if ( ( (x, j) in self.coups_prep and not self.coups_prep[(x, j)][b] ) or ( (x, j) in self.coups_joue and self.coups_joue[(x, j)] != b ))]:
                 for (x, l) in [(x, l) for l in range(0, i) if (x, l) in self.coups_prep]:
                     self.coups_prep[(x, l)][b] = 0
             
@@ -386,10 +394,10 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
             # on augemnte la priorité des coups sur les positions pouvant potentiellement contenir le bateau b i.e. une croix autours de la position du b touché
             for c in itr.chain( # on itère sur des générateurs décrivant ces positions
                     # XXX: peu se faire avec une compréhension de liste
-                    ((i, y) for i in range(x-1, x-bateaux[b]-1, -1) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]),
-                    ((i, y) for i in range(x+1, x+bateaux[b]) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]), # les positions en dessous de (x, y)
-                    ((x, j) for j in range(y+1, y+bateaux[b]) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b]),
-                    ((x, j) for j in range(y-1, y-bateaux[b]-1, -1) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b])
+                    ((i, y) for i in range(x-1, x-self.bataille.bateaux[b]-1, -1) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]),
+                    ((i, y) for i in range(x+1, x+self.bataille.bateaux[b]) if (i, y) in self.coups_prep and self.coups_prep[(i, y)][b]), # les positions en dessous de (x, y)
+                    ((x, j) for j in range(y+1, y+self.bataille.bateaux[b]) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b]),
+                    ((x, j) for j in range(y-1, y-self.bataille.bateaux[b]-1, -1) if (x, j) in self.coups_prep and self.coups_prep[(x, j)][b])
                 ):
                 self.coups_prep.move_to_end(c) # on bouge les positions en fin du dict (elle seront donc appelées en premier sur un popitem)
         else: # le coup n'a rien touché
@@ -465,14 +473,14 @@ class JoueurProba(Joueur):
         
         Joueur.__init__(self, bataille)
 
-        m = dict( map( lambda k : (k, genere_mat_proba(bateaux[k])), bateaux.keys() ) )
+        m = dict( map( lambda k : (k, genere_mat_proba(self.bataille.bateaux[k])), self.bataille.bateaux.keys() ) )
 
-        for id_bat, taille_bat in bateaux:
+        for id_bat, taille_bat in self.bataille.bateaux:
             m += (genere_mat_proba(taille_bat), )
 
         self.coups_prep = OrderedDict()
         for (x, y) in [ pos for pos in itr.product(range(10), range(10)) ]:
-            self.coups_prep[(x, y)] = dict( map( lambda k: (k, m[k][x][y]), bateaux.keys() ) )
+            self.coups_prep[(x, y)] = dict( map( lambda k: (k, m[k][x][y]), self.bataille.bateaux.keys() ) )
 
         self.coups_joue = OrderedDict()
         
@@ -490,19 +498,19 @@ class JoueurProba(Joueur):
             
             b = self.bataille.joue( (x, y) ) # si le coup touche
             if b:
-                m = genere_mat_proba(bateaux[b], (x, y))
+                m = genere_mat_proba(self.bataille.bateaux[b], (x, y))
 
                 for (i,j), p in self.coups_prep:
                     p[b] = m[i][j]
             
             else:
-                m = genere_mat_proba(bateaux[b], (x, y))
+                m = genere_mat_proba(self.bataille.bateaux[b], (x, y))
 
                 for (i,j), p in self.coups_prep:
                     p[b] -= m[i][j]
 
             for (i,j), p in self.coups_prep:
-                for bb in bateaux.keys():
+                for bb in self.bataille.bateaux.keys():
                     if bb != b:
                         p[bb] = 0
 
