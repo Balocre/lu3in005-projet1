@@ -5,7 +5,7 @@ import numpy as np
 class Senseur():
     def __init__(self, n, p,repar):
         """
-        Constructeur d'une classe senseur, initialise les dimensions et la repartition :
+        Constructeur : initialise les dimensions, la matrice de probabilité et la repartition.
         Args :
             n (int) : nombre de lignes
             p (int) : nombre de colonnes
@@ -13,7 +13,6 @@ class Senseur():
         """
         mat_p = self.genere_mat_proba_senseur(n,p,repar) #matrice de probabilite
         self.place_senseur(n,p) #initialise l'attribut pos
-        print(self.pos) 
 
     def place_senseur(self,n,p):
         """
@@ -72,8 +71,6 @@ class Senseur():
         for i in range (n):
             for j in range (p):
                 self.mat_p[i][j]= self.mat_p[i][j]/d
-        print(self.mat_p)
-        print(np.sum(self.mat_p,dtype=float))
         return None
 
     def cherche(self,ps):
@@ -96,5 +93,5 @@ class Senseur():
             self.mat_p = self.mat_p / (1 - self.mat_p[i][j]*ps)
             self.mat_p[i][j] *= 1-ps
 
-s = Senseur(5,5,0)
-print(s.cherche(0.1))
+#s = Senseur(5,5,0)
+#print(s.cherche(0.1))
