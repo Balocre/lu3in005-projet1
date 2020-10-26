@@ -1,4 +1,4 @@
-from code import *
+from bataille import *
 import unittest
 import numpy as np
 
@@ -200,7 +200,7 @@ class TestJoueurProba(unittest.TestCase):
     def test_epuisement(self):
         print("Liste des coups joués par le joueur aléaoire")
         while c := self.joueur_proba.joue():
-            affiche(self.joueur_proba.bataille.grille_decouverte)
+            # affiche(self.joueur_proba.bataille.grille_decouverte)
             print("{}".format(c))
 
         self.assertTrue(self.joueur_proba.bataille.victoire())
