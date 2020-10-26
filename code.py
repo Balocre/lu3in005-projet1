@@ -154,7 +154,7 @@ def nb_pos(bateaux, grille, bateau):
 
     Args:
         grille (int[][]): Matrice représentant la grille de jeu.
-        bateau (String): id du bateau.
+        bateau (int): id du bateau.
 
     Returns:
         int: Le nombre de positions dans lesquelles on peut placer le bateau.
@@ -162,9 +162,9 @@ def nb_pos(bateaux, grille, bateau):
     cpt = 0
     for i in range(N):
         for j in range(N):
-            if (peut_placer(bateaux, grille, bateau,(i,j),1)):
+            if (peut_placer(bateaux, grille, bateau,(i,j),"+x")):
                 cpt+=1
-            if (peut_placer(bateaux, grille, bateau,(i,j),2)):
+            if (peut_placer(bateaux, grille, bateau,(i,j),"+y")):
                 cpt+=1
     return cpt
 
@@ -172,15 +172,15 @@ def nb_pos_list(grille, L):
     """Euh
     """
     if not L : return 0
-    if len(L)==1 : return nb_pos(grille,L[0])
+    if len(L)==1 : return nb_pos(bateaux, grille,L[0])
     else :
         cpt = 0
         for i in range(N):
             for j in range(N):
                 g1 = np.copy(grille)
-                if place(g1,L[0],(i,j),1): cpt = cpt + nb_pos_list(g1,L[1:])
+                if place(bateaux, g1, L[0], (i,j), "+x"): cpt += nb_pos_list(g1, L[1:])
                 g2 = np.copy(grille)
-                if place(g2,L[0],(i,j),2): cpt = cpt + nb_pos_list(g2,L[1:])
+                if place(bateaux, g2, L[0], (i,j), "+y"): cpt += nb_pos_list(g2, L[1:])
         return cpt
 
 def comp_alea_grille(bateaux, grille):
@@ -206,7 +206,7 @@ def approx_total_grilles(bateaux, n):
         n (int): Nombre d'itérations de comp_alea_grille à éffectuer.
     
     Returns:
-        int: La moyenne du nombre d'itérations éfféctuées.
+        (int): La moyenne du nombre d'itérations éfféctuées.
     """
     r = np.array([])
     g = genere_grille(bateaux)

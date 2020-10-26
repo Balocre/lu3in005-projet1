@@ -190,7 +190,11 @@ class TestJoueurProba(unittest.TestCase):
         # [0, 5, 0, 0, 0, 0, 0, 0, 0, 1],
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]]
 
+<<<<<<< HEAD
         self.joueur_proba = JoueurProba(Bataille(self.bateaux, self.grille))
+=======
+        self.joueur_proba = JoueurHeur(Bataille(self.bateaux, self.grille))
+>>>>>>> 23002fce0ac5656d4745196849af0ab7667a0adc
 
     def test_joue(self):
         pos_jouee = self.joueur_proba.joue()
