@@ -93,5 +93,5 @@ class Senseur():
             self.mat_p = self.mat_p / (1 - self.mat_p[i][j]*ps)
             self.mat_p[i][j] *= 1-ps
 
-#s = Senseur(5,5,0)
-#print(s.cherche(0.1))
+s = Senseur(10,10,1)
+print(s.cherche(0.1))
