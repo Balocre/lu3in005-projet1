@@ -215,6 +215,56 @@ def approx_total_grilles(bateaux, n):
 
     return np.average(r)
 
+def approx_total_grilles_2(bateaux, n):
+    """
+    Calcule la moyenne sur n itérations du nombre de combinaisons possibles.
+
+    -Calcule, pour chaque bateau, le nombre nb de façons de le poser dans une grille initialement vide
+    -Le place aléatoirement dans celle-ci. 
+    -La multiplication des nb donne le nombre de combinaisons possibles pour une seule grille. 
+    -Repète cette opération n fois
+    -Retourne la moyenne
+    Args:
+        n (int): Nombre d'itérations de comp_alea_grille à éffectuer.
+    
+    Returns:
+        int: La moyenne du nombre d'itérations éffectuées.
+    """
+    cpt = 0
+    for i in range(n):
+        g = np.zeros((N, N))
+        nb = 1
+        for b in bateaux :
+            nb *= nb_pos(bateaux, g, b)
+            place_alea(bateaux,g,b)
+        cpt += nb
+    return cpt/n
+
+
+def approx_total_grilles_3(bateaux,n):
+    """
+    Calcule la moyenne sur n itérations du nombre de combinaisons possibles.
+
+    -On génère aléatoirement n grilles avec les 3 premiers bateaux
+    -On calcule exactement n fois le nombre de combinaisons des 2 bateaux restants sur ces grilles pour trouver la valeur moyenne.
+    -Retourne la multiplication de cette moyenne par le nombre de combinaisons des 3 premiers bateaux sur une grille vide.
+    Args:
+        n (int): Nombre d'itérations de comp_alea_grille à éffectuer.
+    
+    Returns:
+        int: La moyenne du nombre d'itérations éffectuées.
+    """
+    L = []
+    for k in bateaux:
+        L.append(k)
+    cpt=0
+    for i in range (n):
+        g = np.zeros((10,10))
+        for j in range(3):
+            place_alea(bateaux,g,L[j])
+        cpt += nb_pos_list(g, L[3:])
+    return cpt/n * nb_pos_list(np.zeros((N,N)), L[:3])
+
 
 # Partie 3
 
