@@ -6,6 +6,7 @@ import itertools as itr
 import warnings
 from typing import Optional
 from typing import Tuple
+from typing import Union
 import math
 
 #Constantes
@@ -121,6 +122,7 @@ def affiche(grille, ax=None):
     else :
         cmap = cm.tab10
         cmap.set_bad('r')
+        cmap.set_under('k')
         ax.matshow(grille, cmap=cmap, vmin=0, vmax=9)
         plt.draw()
         plt.waitforbuttonpress()
@@ -307,11 +309,14 @@ class Bataille:
 
         # XXX: peut-etre passer en np.empty? si pas de pb lors de la comparaison
         self.grille_decouverte = np.zeros( (10, 10) )
+        for i in range(10):
+            for j in range(10):
+                self.grille_decouverte[i][j] = -1
 
         self.bateaux = bateaux
 
 
-    def joue(self, pos) -> Optional[int]:
+    def joue(self, pos) -> Optional[Union[int, bool]]:
         """Joue un coup à la position pos
 
         Args:
@@ -329,11 +334,12 @@ class Bataille:
         self.grille_decouverte[pos] = self.grille[pos] # on met à jour la carte de découverte
 
         if self.grille[pos]: # si il y a un bateau ou le joueur vise
-            return self.grille[pos] # la fonction renvoie l'id du bateau touché
+            return True # la fonction renvoie l'id du bateau touché
 
         for b, t in bateaux.copy().items():
             if np.sum(self.grille_decouverte == b) == t:
                 del self.bateaux[b]
+                return b
 
         return None # la fonction indique que rien n'a été touché
 
@@ -454,7 +460,9 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
     def participe(self, bataille):
         super().participe(bataille)
         # XXX: utiliser un tuple comme valeur serait certainement plus rapide, dans ce cas corriger les index
-        self.coups_prep = dict.fromkeys(self.coups_prep) # ce dictionnaire contient la liste des coups préparés par le joueur, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur un dict ayant pour clé les id des bateaux et valeur 1 si on peut trouver le bateau correspondant à la position 0 sinon 
+        self.coups_prep = dict(
+            (pos, dict((b, 1) for b in self.bataille.bateaux.keys())) 
+            for pos in self.coups_prep) # ce dictionnaire contient la liste des coups préparés par le joueur, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur un dict ayant pour clé les id des bateaux et valeur 1 si on peut trouver le bateau correspondant à la position 0 sinon 
         
 
     # TODO: 
@@ -494,22 +502,21 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
             axe = None
             direction = None
 
-            if self.coups_joue.get((x+1, y)) == b:
+            if self.coups_joue.get((x+1, y)):
                 axe = 'x'
                 direction = '-'
-            elif self.coups_joue.get((x-1, y)) == b:
+            if self.coups_joue.get((x-1, y)):
                 axe = 'x'
                 direction = '+'
-            elif self.coups_joue.get((x, y+1)) == b:
+            if self.coups_joue.get((x, y+1)):
                 axe = 'y'
                 direction = '-'
-            elif self.coups_joue.get((x, y-1)) == b:
+            if self.coups_joue.get((x, y-1)):
                 axe = 'y'
                 direction = '+'
-
 
             maxb = max(self.bataille.bateaux.values())
-            print("maxb", maxb)
+
             if axe == None or axe == 'y':
                 # haut
                 if direction == None or direction == '+':
@@ -553,6 +560,17 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
             # on augemnte la priorité des coups sur les positions pouvant potentiellement contenir le bateau b i.e. une croix autours de la position du b touché
             for c in reversed(liste_prio):
                 self.coups_prep[c] = self.coups_prep.pop(c) # on bouge les positions en fin du dict (elle seront donc appelées en premier sur un popitem)
+
+        
+        else:
+            if self.coups_joue.get((x+1, y)):
+                pass
+            if self.coups_joue.get((x-1, y)):
+                pass
+            if self.coups_joue.get((x, y+1)):
+                pass
+            if self.coups_joue.get((x, y-1)):
+                pass
 
         self.coups_joue[(x, y)] = b
     
@@ -638,7 +656,12 @@ class JoueurProba(Joueur):
         x, y = self.coups_prep.popitem()[0]
 
         b = self.bataille.joue( (x, y) ) # si le coup touche
-        if b:
+        
+        if b and b is not True:
+            for pos in self.coups_prep.copy():
+                del self.coups_prep[pos][b]
+
+        elif b is True:
             for b in self.bataille.bateaux.keys():
                 mb = genere_mat_proba(self.bataille.bateaux[b], (x, y))
 
