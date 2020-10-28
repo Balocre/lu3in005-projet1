@@ -1,14 +1,12 @@
 import random
 import numpy as np
+import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import itertools as itr
 import warnings
 from typing import Optional
 from typing import Tuple
 import math
-import sortedcontainers
-from sortedcontainers import SortedDict
-
 
 #Constantes
 N = 10
@@ -42,13 +40,13 @@ def peut_placer(bateaux, grille, id_bat, pos, direction):
     x, y = pos
     taille_bat = bateaux[id_bat]
 
-    if (x < 0) or (y < 0) or (x + taille_bat >= N) or (y + taille_bat >= N): return False # on vérifie que les coordonées sont dans la grille
+    if (x < 0) or (y < 0) or (x + taille_bat > N) or (y + taille_bat > N): return False # on vérifie que les coordonées sont dans la grille
 
-    if (direction == "+y"): # horizontale vers la droite
-       if not np.all(grille[x, y:y+taille_bat]): return True # on vérifie que les cases de la grille sont libres
+    if (direction == "+y"):
+       if not np.any(grille[x, y:y+taille_bat]): return True # on vérifie que les cases de la grille sont libres
 
-    elif (direction == "+x"): # verticale vers le bas
-       if not np.count_nonzero(grille[x:x+taille_bat, y]): return True
+    elif (direction == "+x"):
+       if not np.any(grille[x:x+taille_bat, y]): return True
     
     return False
 
@@ -117,7 +115,9 @@ def affiche(grille, ax=None):
         plt.waitforbuttonpress()
         plt.close(fig)
     else :
-        ax.matshow(grille, cmap="tab10", vmin=0, vmax=9)
+        cmap = cm.tab10
+        cmap.set_bad('r')
+        ax.matshow(grille, cmap=cmap, vmin=0, vmax=9)
         plt.draw()
         plt.waitforbuttonpress()
         ax.clear()
@@ -560,11 +560,9 @@ def genere_mat_proba(taille_bat, pos=None):
     else:
         r = np.zeros( (10, 10) )
         (x, y) = pos
-        print("a ", max(x-taille_bat+1, 0), min(x+1, 10-taille_bat+1))
         for i in range(max(x-taille_bat+1, 0), min(x+1, 10-taille_bat+1)):
             r[i:i+taille_bat+1, y] = [k+1 for k in r[i:i+taille_bat+1, y]]
         
-        print("b", max(y-taille_bat+1, 0), min(y+1, 10-taille_bat+1))
         for j in range(max(y-taille_bat+1, 0), min(y+1, 10-taille_bat+1)):
             r[x, j:j+taille_bat+1] = [l+1 for l in r[x, j:j+taille_bat+1]]
 
@@ -612,6 +610,9 @@ class JoueurProba(Joueur):
 
         self.coups_prep = dict( sorted( self.coups_prep.items(), key=lambda x: sum(x[1].values() ) ) ) # on réorganise l'ordre du dictionnaire en fonction de la probabilité d'un coup de toucher un bateau
 
+        for k, v in self.coups_prep.items():
+            print(k, v.values(), sum(v.values()))
+
         x, y = self.coups_prep.popitem()[0]
 
         b = self.bataille.joue( (x, y) ) # si le coup touche
@@ -624,15 +625,9 @@ class JoueurProba(Joueur):
         else:
             for b in self.bataille.bateaux.keys():
                 mb = genere_mat_proba(self.bataille.bateaux[b], (x, y))
-                # affiche(mb)
 
                 for (i,j), p in self.coups_prep.items():
                     p[b] -= mb[i][j]
-
-        # for (i,j), p in self.coups_prep.items():
-        #     for bb in self.bataille.bateaux.keys():
-        #         if bb != b:
-        #             p[bb] = 0
 
         return (x, y)
 
@@ -749,6 +744,7 @@ def partie(joueur):
     while not joueur.bataille.victoire():
         
         affiche(joueur.bataille.grille_decouverte, ax1)
+        
         if isinstance(joueur, JoueurProba):
             m = np.zeros((10, 10))
             for k in range(10):
@@ -763,13 +759,14 @@ def partie(joueur):
         
         x, y = joueur.joue()
         
+        print("joué:", x, y)
+        
         grille_vise = joueur.bataille.grille_decouverte.copy()
-        grille_vise[x][y] = 9
+        grille_vise[x][y] = np.nan
         
         affiche(grille_vise, ax1)
         del grille_vise
 
-        print("i:", i)
         i += 1
 
     
