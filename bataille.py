@@ -339,6 +339,7 @@ class Bataille:
         for b, t in bateaux.copy().items():
             if np.sum(self.grille_decouverte == b) == t:
                 del self.bateaux[b]
+                print("Bateau {} trouvé".format(b))
                 return b
 
         return None # la fonction indique que rien n'a été touché
@@ -625,6 +626,8 @@ class JoueurProba(Joueur):
 
     def __init__(self, bataille=None):
         super().__init__(bataille)
+
+        self.coups_joue = dict()
         
     def participe(self, bataille):
         super().participe(bataille)
@@ -650,8 +653,8 @@ class JoueurProba(Joueur):
 
         self.coups_prep = dict( sorted( self.coups_prep.items(), key=lambda x: sum(x[1].values() ) ) ) # on réorganise l'ordre du dictionnaire en fonction de la probabilité d'un coup de toucher un bateau
 
-        for k, v in self.coups_prep.items():
-            print(k, v.values(), sum(v.values()))
+        # for k, v in self.coups_prep.items():
+        #     print(k, v.values(), sum(v.values()))
 
         x, y = self.coups_prep.popitem()[0]
 
@@ -661,19 +664,34 @@ class JoueurProba(Joueur):
             for pos in self.coups_prep.copy():
                 del self.coups_prep[pos][b]
 
+            for pos in zip(*np.where(self.bataille.grille_decouverte == b)):
+                self.coups_joue[pos] = b
+            
+            print(self.coups_joue.items())
+            
+            for pos, _ in filter(lambda e : e[1] == b, self.coups_joue.items()):
+                for bb in self.bataille.bateaux.keys():
+                    mb = genere_mat_proba(self.bataille.bateaux[bb], pos)
+
+                    for (i,j), p in self.coups_prep.items():
+                        p[bb] -= sum(self.bataille.bateaux) * mb[i][j]
+            
+
         elif b is True:
-            for b in self.bataille.bateaux.keys():
-                mb = genere_mat_proba(self.bataille.bateaux[b], (x, y))
+            for bb in self.bataille.bateaux.keys():
+                mb = genere_mat_proba(self.bataille.bateaux[bb], (x, y))
 
                 for (i,j), p in self.coups_prep.items():
-                    p[b] += mb[i][j]
+                    p[bb] += 17 * mb[i][j]
         
         else:
-            for b in self.bataille.bateaux.keys():
-                mb = genere_mat_proba(self.bataille.bateaux[b], (x, y))
+            for bb in self.bataille.bateaux.keys():
+                mb = genere_mat_proba(self.bataille.bateaux[bb], (x, y))
 
                 for (i,j), p in self.coups_prep.items():
-                    p[b] -= mb[i][j]
+                    p[bb] -= mb[i][j]
+
+        self.coups_joue[(x, y)] = b
 
         return (x, y)
 
