@@ -12,7 +12,6 @@ import math
 #Constantes
 N = 10
 #Dictionnaire reliant les differents bateaux et leur taille en nombre de case
-bateaux = dict() #dictionnaire de bateaux
 bateaux = {1:5, 2:4, 3:3, 4:3, 5:2}
 
 #Représentation du plateau vide en tant que matrice 10x10
@@ -302,17 +301,18 @@ class Bataille:
     """
 
     def __init__(self, bateaux, grille=None):
-        if grille is not None:
+        if grille is not None: # dans le cas ou une grille est passée en paramètre la bataille se sjue sur cette grille
             self.grille = grille 
-        else:
+        else: # sinon génère une grille aléatoire
             self.grille = genere_grille(bateaux)
 
-        # XXX: peut-etre passer en np.empty? si pas de pb lors de la comparaison
-        self.grille_decouverte = np.zeros( (10, 10) )
+        # initialisation de la grille masquée, à chaque coup joué cette grille prend la valeure de la grille de jeu en la position du coup
+        self.grille_decouverte = np.empty( (10, 10) )
         for i in range(10):
             for j in range(10):
                 self.grille_decouverte[i][j] = -1
 
+        # les bateaux qui sont encore en jeu
         self.bateaux = bateaux
 
 
@@ -323,22 +323,23 @@ class Bataille:
             pos ((int, int)): La position à laquelle jouer le coup
 
         Returns:
-            Optional[int]: L'id du bateau à la position jouée si il y'a un bateau, None sinon
+            Optional[Union[int, bool]]: L'id du bateau coulé, True si le bateau est simplement touché, None si rien touché
         """
 
         (x, y) = pos
 
         if (x < 0) or (y < 0) or (x > 9) or (y > 9):
-            raise ValueError("la position spécifiée n'est pas valide")
+            raise ValueError("la position spécifiée n'est pas dans la grille de jeu")
 
-        self.grille_decouverte[pos] = self.grille[pos] # on met à jour la carte de découverte
+        self.grille_decouverte[pos] = self.grille[pos] # on met à jour la carte masquée
 
         if self.grille[pos]: # si il y a un bateau ou le joueur vise
-            return True # la fonction renvoie l'id du bateau touché
+            return True
 
-        for b, t in bateaux.copy().items():
-            if np.sum(self.grille_decouverte == b) == t:
-                del self.bateaux[b]
+        for b, t in bateaux.copy().items(): # on parcours le dictionnaire des bateaux
+            if np.sum(self.grille_decouverte == b) == t: # si la somme des éléments découverts correspondannt au bateau rdt égale à sa taille, \
+                                                         # ça signifie que le bateau est coulé
+                del self.bateaux[b] # on retire le bateau du dictionnaire
                 print("Bateau {} trouvé".format(b))
                 return b
 
@@ -354,7 +355,7 @@ class Bataille:
         Returns:
             bool: True si la partie est finie, False sinon.
         """
-        if not self.bateaux:
+        if not self.bateaux: # quand plus aucun bateau n'est en jeu
             return True
         return False
 
@@ -364,15 +365,15 @@ class Bataille:
 class Joueur:
     """Représente un joueur de bataille navale
 
+    Args:
+        bataille (Bataille): Bataille à laquelle le joueur participe.
+        
+    Attributes:
+        bataille (Bataille): Bataille à laquelle le joueur participe.
+        
     Note:
         Cette classe ne sert que de super classe pour les classes en héritant et ne doit pas être instanciée.
         Utiliser JoueurAlea, JoueurHeur ou JoueurProba.
-
-    Args:
-        bataille (Bataille): La bataille jouée par le joueur.
-
-    Attributes:
-        bataille (Bataille): La bataille jouée par le joueur.
     """
 
     def __init__(self, bataille=None):
@@ -385,7 +386,8 @@ class Joueur:
         Raises:
             AttributeError: Si le joueur ne participe pas à une bataille rase AtttibuteError car self.bataille n'éxiste pas
         """
-        if not hasattr(self, 'bataille'):
+
+        if not hasattr(self, 'bataille'): # si le joueur ne participe pas à une bataille son attribut bataille n'est pas initialisé
             raise AttributeError("Le joueur ne participe pas actuellement à une bataille")
 
     def participe(self, bataille):
@@ -394,6 +396,7 @@ class Joueur:
         Args:
             bataille (Bataille): Bataille à laquelle le joueur participe.
         """
+
         self.bataille = bataille
         print("Le joueur a rejoint la bataille {}".format(self.bataille))
 
@@ -414,6 +417,7 @@ class JoueurAlea(Joueur):
         
     def participe(self, bataille):
         super().participe(bataille)
+
         # génère une liste de position aléatoires dans la grille
         self.coups_prep = list(itr.product(range(10), range(10))) 
         random.shuffle(self.coups_prep)
@@ -427,7 +431,7 @@ class JoueurAlea(Joueur):
             (int, int): La position du coup joué
         """
 
-        Joueur.joue(self)
+        super().joue()
 
         if len(self.coups_prep) == 0:
             warnings.warn("Le joueur ne peux plus jouer, tout ses coups sont épuisés")
@@ -456,46 +460,42 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
 
     def __init__(self, bataille=None):
         super().__init__(bataille)
-        self.coups_joue = dict() # ce dict contient la liste des coups joués, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur l'id du bateau trouvé à la position ou None
+        self.coups_joue = dict() # ce dict contient la liste des coups joués, en utilisant pour clé le couple (x, y) représentant la position du coup 
+                                 # et ayant pour valeur l'id du bateau trouvé à la position ou None
 
     def participe(self, bataille):
         super().participe(bataille)
-        # XXX: utiliser un tuple comme valeur serait certainement plus rapide, dans ce cas corriger les index
-        self.coups_prep = dict(
-            (pos, dict((b, 1) for b in self.bataille.bateaux.keys())) 
-            for pos in self.coups_prep) # ce dictionnaire contient la liste des coups préparés par le joueur, en utilisant pour clé le couple (x, y) représentant la position du coup et ayant pour valeur un dict ayant pour clé les id des bateaux et valeur 1 si on peut trouver le bateau correspondant à la position 0 sinon 
-        
 
-    # TODO: 
-    # traiter l'épuisement des cases
-    # XXX:
-    # retirer les entrées des dicos = +rapide?
+        # XXX: utiliser un tuple comme valeur serait certainement plus rapide, dans ce cas corriger les index, mais dict beaucoup plus pratique
+        # génère un dictionnaire qui contient la liste des coups préparés par le joueur
+        self.coups_prep = dict(
+            (pos, dict((b, 1) for b in self.bataille.bateaux.keys())) # 
+            for pos in self.coups_prep) # en utilisant pour clé le couple (x, y) représentant la position du coup 
+                                        # et ayant pour valeur un dict ayant pour clé les id des bateaux et valeur 1 si on peut trouver le bateau correspondant à la position 0 sinon 
+        
     def joue(self):
         """Joue un coup de la bataille en utilisant une heuristique.
 
         L'heuristique est la suivante:
-        Dans le cas par défaut joue un coup aléatoire de la bataille.
-        Si le coup touche: 
-            * élimine les positions rendues impossibles par la découverte du bateau touché à la position jouée - essentiellement les positions 
-              qui seraient coupées par une case déjà jouée ne contenant pas le bateau découvert.
-            * éxplore les cases pouvant contenir le bateau touché en croix autours de la position jouée avec pour distance max du centre de la 
-              croix la taille du bateau.
-        Sinon :
-            * vérifie si la cases autours de de la position jouée ont déjà été jouées et si un bateau y a été découvert, si oui élimine la possibilité de trouver ce
-              bateau dans les cases noon jouées de la direction opposée.
+        Cherche une cible de manière aléatoire.
+        Sur une touche :
+            * Prioritise les cases adjacentes pour la recherche.
+            * Si bateau touché dans une case ajacente explore l'axe formé par le coup actuel et le bateau touché à côté.
+            * Limite la recherche à la taille max des bateaux encore en jeu.
 
         Returns:
             (int, int): La position du coup joué.
         """
 
-        Joueur.joue(self)
+        Joueur.joue(self) # pour le AttributeError si pas de bataille initialisée
 
-        if not self.coups_prep:
+        if not self.coups_prep: # ne devrait jamais arriver
             warnings.warn("Le joueur ne peux plus jouer, tout ses coups sont épuisés")
             return None
 
         x, y = self.coups_prep.popitem()[0]
         b = self.bataille.joue( (x, y) ) # si le coup touche
+
         if b:
             # on retire la possibilité de trouver b aux positions potentielles "plus loin" qu'une position ayant déjà étée jouée avec un autre bateau que b ait été découvert ou dont on à éliminé la possibilité de contenir b
 
@@ -503,6 +503,7 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
             axe = None
             direction = None
 
+            # vérif si bateau touché dans case adjacente et si oui prioritise la recherche dans la direction opposée
             if self.coups_joue.get((x+1, y)):
                 axe = 'x'
                 direction = '-'
@@ -516,6 +517,7 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
                 axe = 'y'
                 direction = '+'
 
+            # taille max des bateaux encore en jeu
             maxb = max(self.bataille.bateaux.values())
 
             if axe == None or axe == 'y':
@@ -534,7 +536,7 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
                         elif (x, i) in self.coups_prep:
                             liste_prio.append((x, i))
                 
-                # si il n'y a pas assez d'espace sur l'axe pour placer le bateau
+                # si il n'y a pas assez d'espace en y pour placer le bateau
                 if len(liste_prio) < maxb-1:
                     list_prio = []
 
@@ -554,15 +556,17 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
                         elif (j, y) in self.coups_prep:
                             liste_prio.append((j, y))
                 
+                # si il n'y à pas assez d'espace en x
                 liste_prio_x = [(i ,j) for (i, j) in liste_prio if j == y]
                 if len(liste_prio_x) < maxb-1:
                     liste_prio = [(i ,j) for (i, j) in liste_prio if i == x]
 
-            # on augemnte la priorité des coups sur les positions pouvant potentiellement contenir le bateau b i.e. une croix autours de la position du b touché
+            # on augemente la priorité des coups sur les positions pouvant potentiellement contenir le bateau b dans la file i.e. une croix autours de la position du b touché
             for c in reversed(liste_prio):
                 self.coups_prep[c] = self.coups_prep.pop(c) # on bouge les positions en fin du dict (elle seront donc appelées en premier sur un popitem)
 
-        
+        # TODO:
+        # * arreter l'explo si coup dans le vide adjacent à bateau touché
         else:
             if self.coups_joue.get((x+1, y)):
                 pass
@@ -581,7 +585,7 @@ def genere_mat_proba(taille_bat, pos=None):
     """Génère une matrice de probabilité pour le bateau de taille donnée.
 
     Cette fonction peut générer deux types de matrices de probabilité :
-        * Dans le cas o├╣ la position de l'origine du bateau n'est pas donnée, la matrice de proba générée correspond à la superposition de tous les bateaux possibles
+        * Dans le cas où la position de l'origine du bateau n'est pas donnée, la matrice de proba générée correspond à la superposition de tous les bateaux possibles
           sur la grille.
         * Dans l'autre cas la matrice de proba correspond à la superposition des bateaux ayant une pièce placée sur l'origine
 
@@ -592,6 +596,7 @@ def genere_mat_proba(taille_bat, pos=None):
     Returns:
         int[][]: La matrice de probabilité associée au bateau de taille passée en entrée
     """
+
     if not pos:
         r = np.empty( (10, 10) )
         for i in range(0, 10):
@@ -632,6 +637,7 @@ class JoueurProba(Joueur):
     def participe(self, bataille):
         super().participe(bataille)
         
+        # génère un dict associant chaque bateau à sa matrice de proba initiale
         m = dict( map( lambda k : (k, genere_mat_proba(self.bataille.bateaux[k])), self.bataille.bateaux.keys() ) )
 
         self.coups_prep = dict()
@@ -653,28 +659,24 @@ class JoueurProba(Joueur):
 
         self.coups_prep = dict( sorted( self.coups_prep.items(), key=lambda x: sum(x[1].values() ) ) ) # on réorganise l'ordre du dictionnaire en fonction de la probabilité d'un coup de toucher un bateau
 
-        # for k, v in self.coups_prep.items():
-        #     print(k, v.values(), sum(v.values()))
-
         x, y = self.coups_prep.popitem()[0]
 
         b = self.bataille.joue( (x, y) ) # si le coup touche
         
-        if b and b is not True:
+        if b and b is not True: # si le bateau est coulé
             for pos in self.coups_prep.copy():
-                del self.coups_prep[pos][b]
+                del self.coups_prep[pos][b] # on retire les entrées correspondant au proba de toucher le bateau sur les cases encore en jeu
 
             for pos in zip(*np.where(self.bataille.grille_decouverte == b)):
-                self.coups_joue[pos] = b
+                self.coups_joue[pos] = b # on met à jour des cases ou le bateau à été découvert
             
-            print(self.coups_joue.items())
-            
-            for pos, _ in filter(lambda e : e[1] == b, self.coups_joue.items()):
+            for pos, _ in filter(lambda e : e[1] == b, self.coups_joue.items()): # on itère sur les positions du bateau
+                # pour chaque bateau encore en jeu on soustrait la matrice de proba générée sur les positions du bateau pour remettre la matrice de proba dans son état initiale (bateaux trouvés exclus)
                 for bb in self.bataille.bateaux.keys():
                     mb = genere_mat_proba(self.bataille.bateaux[bb], pos)
 
                     for (i,j), p in self.coups_prep.items():
-                        p[bb] -= sum(self.bataille.bateaux) * mb[i][j]
+                        p[bb] -= self.bataille.bateaux[bb] * mb[i][j]
             
 
         elif b is True:
@@ -682,7 +684,7 @@ class JoueurProba(Joueur):
                 mb = genere_mat_proba(self.bataille.bateaux[bb], (x, y))
 
                 for (i,j), p in self.coups_prep.items():
-                    p[bb] += 17 * mb[i][j]
+                    p[bb] += self.bataille.bateaux[bb] * mb[i][j]
         
         else:
             for bb in self.bataille.bateaux.keys():
@@ -823,7 +825,7 @@ def partie(joueur):
         
         x, y = joueur.joue()
         
-        print("joué:", x, y)
+        print("Le joueur à joué en position ({}, {}):".format(x, y))
         
         grille_vise = joueur.bataille.grille_decouverte.copy()
         grille_vise[x][y] = np.nan
