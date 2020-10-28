@@ -23,8 +23,9 @@ def peut_placer(bateaux, grille, id_bat, pos, direction):
     """Teste s'il est possible de placer un bateau sur la grille de jeu.
 
     Args:
+        bateaux (dict of int: int): Dictionnaire associant chaque bateau à sa taille.
         grille (int[][]): Matrice représentant la grille de jeu.
-        bateau (int): Id du bateau.
+        id_bat (int): Id du bateau.
         position (int*int): Position de l'origine du bateau dans la grille de jeu.
         direction (String): Direction en fonctions des axes x (vertical) et y (horisontal) \"+x\" pour horizontal-droite, \"+y\" pour vertical-bas.
 
@@ -54,8 +55,9 @@ def place(bateaux, grille, id_bat, pos, direction) -> Optional[Tuple[Tuple[int, 
     """Place un bateau sur la grille de jeu si c'est possible.
 
     Args:
+        bateaux (dict of int: int): Dictionnaire associant chaque bateau à sa taille.
         grille (int[][]): Matrice représentant la grille de jeu.
-        bateau (int): Id du bateau.
+        id_bat (int): Id du bateau.
         position (int*int): Position dans la matrice. 
         direction (String): Direction en fonctions des axes x (vertical) et y (horisontal) \"+x\" pour horizontal-droite, \"+y\" pour vertical-bas.
 
@@ -78,10 +80,11 @@ def place(bateaux, grille, id_bat, pos, direction) -> Optional[Tuple[Tuple[int, 
             return tuple( (i, y) for i in range(x, x+taille_bat) )
 
 
-def place_alea(bateaux, grille, bateau):
+def place_alea(bateaux, grille, id_bat):
     """Place un bateau à une position aléatoire de la grille de jeu
 
     Args:
+        bateaux (dict of int: int): Dictionnaire associant chaque bateau à sa taille.
         grille (int[][]): Matrice représentant la grille de jeu.
         bateau (int): Id du bateau.
 
@@ -91,7 +94,7 @@ def place_alea(bateaux, grille, bateau):
 
     while r := not place(bateaux, 
         grille, 
-        bateau, 
+        id_bat, 
         (random.randint(0, 9), random.randint(0, 9)), 
         random.sample( frozenset(["+x", "+y"]), 1)[0]
         ):
@@ -105,6 +108,7 @@ def affiche(grille, ax=None):
     
     Args:
         grille (int[][]): Matrice représentant la grille de jeu.
+        ax (matplolib.axex): Axe sur lequel dessiner la figure si fournis
     """
 
     close = 0
@@ -127,7 +131,7 @@ def eq(grille_a, grille_b):
     
     Args:
         grille_a (int[][]): Matrice représant la première grille de jeu.
-        grille_b (int[][]): Matrice représant la deuxièmé grille de jeu.
+        grille_b (int[][]): Matrice représant la deuxième grille de jeu.
 
     Returns:
         bool: True si les grilles sont égales, False sinon.
@@ -214,6 +218,7 @@ def approx_total_grilles(bateaux, n):
     """Calcul la moyenne sur n itérations du nombre de grilles générées par comp_alea_grille.
 
     Args:
+        bateaux (dict of int: int): Dictionnaire associant chaque bateau à sa taille.
         n (int): Nombre d'itérations de comp_alea_grille à éffectuer.
     
     Returns:
@@ -239,6 +244,7 @@ def approx_total_grilles_2(bateaux, n):
         n (int): Nombre d'itérations de comp_alea_grille à éffectuer.
     
     Returns:
+        bateaux (dict of int: int): Dictionnaire associant chaque bateau à sa taille
         int: La moyenne du nombre d'itérations éffectuées.
     """
     cpt = 0
@@ -256,10 +262,11 @@ def approx_total_grilles_3(bateaux,n):
     """
     Calcule la moyenne sur n itérations du nombre de combinaisons possibles.
 
-    -On génère aléatoirement n grilles avec les 3 premiers bateaux
+    -On génère aléatoirement n grilles avec les 3 premiers bateaux.
     -On calcule exactement n fois le nombre de combinaisons des 2 bateaux restants sur ces grilles pour trouver la valeur moyenne.
     -Retourne la multiplication de cette moyenne par le nombre de combinaisons des 3 premiers bateaux sur une grille vide.
     Args:
+        bateaux (dict of int: int): Dictionnaire associant chaque bateau à sa taille
         n (int): Nombre d'itérations de comp_alea_grille à éffectuer.
     
     Returns:
@@ -283,8 +290,8 @@ class Bataille:
     """Représente une partie de bataille navale
 
     Args:
-        bateaux (dict of int:int): Un dictionnaire définissant la taille des bateaux de la partie.
-        grille (int[][]): Matrice représantant les positions découvertes par le joueur
+        bateaux (dict of int: int): Dictionnaire associant chaque bateau à sa taille.
+        grille (int[][]): Grille d'une batailel initialisée.
 
 
     Attributes:
@@ -324,6 +331,10 @@ class Bataille:
         if self.grille[pos]: # si il y a un bateau ou le joueur vise
             return self.grille[pos] # la fonction renvoie l'id du bateau touché
 
+        for b, t in bateaux.copy().items():
+            if np.sum(self.grille_decouverte == b) == t:
+                del self.bateaux[b]
+
         return None # la fonction indique que rien n'a été touché
 
     def victoire(self):
@@ -336,7 +347,7 @@ class Bataille:
         Returns:
             bool: True si la partie est finie, False sinon.
         """
-        if eq(self.grille, self.grille_decouverte):
+        if not self.bateaux:
             return True
         return False
 
@@ -362,10 +373,20 @@ class Joueur:
             self.participe(bataille)
 
     def joue(self):
+        """Cette fonction vérifie si le joueur participe à une bataille
+
+        Raises:
+            AttributeError: Si le joueur ne participe pas à une bataille rase AtttibuteError car self.bataille n'éxiste pas
+        """
         if not hasattr(self, 'bataille'):
             raise AttributeError("Le joueur ne participe pas actuellement à une bataille")
 
     def participe(self, bataille):
+        """Set la bataille à laquelle le joueur participe.
+
+        Args:
+            bataille (Bataille): Bataille à laquelle le joueur participe.
+        """
         self.bataille = bataille
         print("Le joueur a rejoint la bataille {}".format(self.bataille))
 
@@ -486,44 +507,47 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
                 axe = 'y'
                 direction = '+'
 
+
+            maxb = max(self.bataille.bateaux.values())
+            print("maxb", maxb)
             if axe == None or axe == 'y':
                 # haut
                 if direction == None or direction == '+':
-                    for i in range(y-1, y-self.bataille.bateaux[b], -1): # pour les positions n'ayant pas été jouées et ne pouvant pas contenir b et les position ayant été jouées et contenant un autre bateau que b
+                    for i in range(y-1, y-maxb, -1): # pour les positions n'ayant pas été jouées et ne pouvant pas contenir b et les position ayant été jouées et contenant un autre bateau que b
                         if (x, i) in self.coups_joue and self.coups_joue[(x, i)] != b:
                             break
                         elif (x, i) in self.coups_prep:
                             liste_prio.append((x, i))
                 # bas
                 if direction == None or direction == '-':
-                    for i in range(y+1, y+self.bataille.bateaux[b]):
+                    for i in range(y+1, y+maxb):
                         if (x, i) in self.coups_joue and self.coups_joue[(x, i)] != b:
                             break
                         elif (x, i) in self.coups_prep:
                             liste_prio.append((x, i))
                 
                 # si il n'y a pas assez d'espace sur l'axe pour placer le bateau
-                if len(liste_prio) < self.bataille.bateaux[b]-1:
+                if len(liste_prio) < maxb-1:
                     list_prio = []
 
             if axe == None or axe == 'x':
                 # gauche
                 if direction == None or direction == '+':
-                    for j in range(x-1, x-self.bataille.bateaux[b], -1):
+                    for j in range(x-1, x-maxb, -1):
                         if (j, y) in self.coups_joue and self.coups_joue[(j, y)] != b:
                             break
                         elif (j, y) in self.coups_prep:
                             liste_prio.append((j, y))
                 # droite
                 if direction == None or direction == '-':
-                    for j in range(x+1, x+self.bataille.bateaux[b]):
+                    for j in range(x+1, x+maxb):
                         if (j, y) in self.coups_joue and self.coups_joue[(j, y)] != b:
                             break
                         elif (j, y) in self.coups_prep:
                             liste_prio.append((j, y))
                 
                 liste_prio_x = [(i ,j) for (i, j) in liste_prio if j == y]
-                if len(liste_prio_x) < self.bataille.bateaux[b]-1:
+                if len(liste_prio_x) < maxb-1:
                     liste_prio = [(i ,j) for (i, j) in liste_prio if i == x]
 
             # on augemnte la priorité des coups sur les positions pouvant potentiellement contenir le bateau b i.e. une croix autours de la position du b touché
@@ -561,10 +585,10 @@ def genere_mat_proba(taille_bat, pos=None):
         r = np.zeros( (10, 10) )
         (x, y) = pos
         for i in range(max(x-taille_bat+1, 0), min(x+1, 10-taille_bat+1)):
-            r[i:i+taille_bat+1, y] = [k+1 for k in r[i:i+taille_bat+1, y]]
+            r[i:i+taille_bat, y] = [k+1 for k in r[i:i+taille_bat, y]]
         
         for j in range(max(y-taille_bat+1, 0), min(y+1, 10-taille_bat+1)):
-            r[x, j:j+taille_bat+1] = [l+1 for l in r[x, j:j+taille_bat+1]]
+            r[x, j:j+taille_bat] = [l+1 for l in r[x, j:j+taille_bat]]
 
     return r
 
@@ -593,8 +617,6 @@ class JoueurProba(Joueur):
         for (x, y) in [ pos for pos in itr.product(range(10), range(10)) ]:
             self.coups_prep[(x, y)] = dict( map( lambda k: (k, m[k][x][y]), self.bataille.bateaux.keys() ) )
 
-        
-            
     def joue(self):
         """Joue un coup de la bataille parmis les coups ayant la plus grande proba de toucher un bateau
 
@@ -617,10 +639,11 @@ class JoueurProba(Joueur):
 
         b = self.bataille.joue( (x, y) ) # si le coup touche
         if b:
-            mb = genere_mat_proba(self.bataille.bateaux[b], (x, y))
+            for b in self.bataille.bateaux.keys():
+                mb = genere_mat_proba(self.bataille.bateaux[b], (x, y))
 
-            for (i,j), p in self.coups_prep.items():
-                p[b] = mb[i][j]
+                for (i,j), p in self.coups_prep.items():
+                    p[b] += mb[i][j]
         
         else:
             for b in self.bataille.bateaux.keys():
