@@ -12,7 +12,7 @@ import math
 #Constantes
 N = 10
 #Dictionnaire reliant les differents bateaux et leur taille en nombre de case
-bateaux = {1:5, 2:4, 3:3, 4:3, 5:2}
+boat = {1:5, 2:4, 3:3, 4:3, 5:2}
 
 #Représentation du plateau vide en tant que matrice 10x10
 plateau = np.zeros( (10,10) )
@@ -50,6 +50,29 @@ def peut_placer(bateaux, grille, id_bat, pos, direction):
        if not np.any(grille[x:x+taille_bat, y]): return True
     
     return False
+
+# def peut_placer(bateaux, grille, bateau, position, direction):
+#     """
+#     Teste s'il est possible de placer un bateau dans une direction souhaitee
+#     a la case position de la grille
+    
+#     Args:
+#         grille (int[][]): map 2D 10x10
+#         bateau (String): nom du bateau
+#         position (int*int): position dans la matrice 
+#         direction (int): 1 pour horizontal, 2 pour vertical
+
+#     Returns:
+#         [type]: [boolean]
+#     """
+#     (k,l) = position
+#     if (k >= N or l >= N): return False
+#     if (direction == "+x"):
+#         if (l + bateaux[bateau] <= N):
+#             return np.array_equal(grille[k,l:l + bateaux[bateau]], np.zeros(bateaux[bateau],dtype=int))
+#     else :
+#         if (k + bateaux[bateau] <= N):
+#             return np.array_equal(grille[k:k + bateaux[bateau],l], np.zeros(bateaux[bateau],dtype=int))
 
 def place(bateaux, grille, id_bat, pos, direction) -> Optional[Tuple[Tuple[int, int], ...]]:
     """Place un bateau sur la grille de jeu si c'est possible.
@@ -199,10 +222,11 @@ def nb_pos_list(grille, L):
                 if place(bateaux, g2, L[0], (i,j), "+y"): cpt += nb_pos_list(g2, L[1:])
         return cpt
 
-def comp_alea_grille(bateaux, grille):
+def comp_alea_grille(bateaux, L, grille):
     """Compare la grille en entrée à des grilles générées aléatoirement jusqu'a trouver une grille de jeu égale.
 
     Args:
+        L (int[]) : List de bateaux
         grille (int[][]): Matrice représentant la grille de jeu.
 
     Returns:
@@ -210,27 +234,30 @@ def comp_alea_grille(bateaux, grille):
     """
     i = 0
     while True:
+        g=np.zeros((N,N))
+        for k in L:
+            place_alea(bateaux,g,k)
+        if eq(grille, g):
+            return i
         i+=1
-        if eq(grille, genere_grille(bateaux)):
-            break
-    return i
 
-def approx_total_grilles(bateaux, n):
+def approx_total_grilles(bateaux, L, n):
     """Calcul la moyenne sur n itérations du nombre de grilles générées par comp_alea_grille.
 
     Args:
-        bateaux (dict of int: int): Dictionnaire associant chaque bateau à sa taille.
+        L ((int[])) : Liste de bateaux
         n (int): Nombre d'itérations de comp_alea_grille à éffectuer.
     
     Returns:
         (int): La moyenne du nombre d'itérations éfféctuées.
     """
-    r = np.array([])
-    g = genere_grille(bateaux)
+    cpt=0
+    g = np.zeros((N,N))
+    for i in L:
+        place_alea(bateaux,g,i)
     for i in range(n):
-        np.append(r, comp_alea_grille(bateaux, g))
-
-    return np.average(r)
+        cpt+=(comp_alea_grille(bateaux, L, g))
+    return cpt/n
 
 def approx_total_grilles_2(bateaux, n):
     """
@@ -326,22 +353,25 @@ class Bataille:
             Optional[Union[int, bool]]: L'id du bateau coulé, True si le bateau est simplement touché, None si rien touché
         """
 
-        (x, y) = pos
+        if self.victoire():
+            warnings.warn("La partie est finie, tout les bateaux ont été trouvés")
+            return None
+
+        x, y = pos
 
         if (x < 0) or (y < 0) or (x > 9) or (y > 9):
             raise ValueError("la position spécifiée n'est pas dans la grille de jeu")
 
         self.grille_decouverte[pos] = self.grille[pos] # on met à jour la carte masquée
-
+        
         if self.grille[pos]: # si il y a un bateau ou le joueur vise
-            return True
+            for b, t in self.bateaux.items(): # on parcours le dictionnaire des bateaux
+                if np.sum(self.grille_decouverte == b) == t: # si la somme des éléments découverts correspondannt au bateau rdt égale à sa taille, \
+                                                            # ça signifie que le bateau est coulé
+                    del self.bateaux[b] # on retire le bateau du dictionnaire
+                    return b
 
-        for b, t in bateaux.copy().items(): # on parcours le dictionnaire des bateaux
-            if np.sum(self.grille_decouverte == b) == t: # si la somme des éléments découverts correspondannt au bateau rdt égale à sa taille, \
-                                                         # ça signifie que le bateau est coulé
-                del self.bateaux[b] # on retire le bateau du dictionnaire
-                print("Bateau {} trouvé".format(b))
-                return b
+            return True
 
         return None # la fonction indique que rien n'a été touché
 
@@ -495,6 +525,9 @@ class JoueurHeur(JoueurAlea): # hérite de joueur aléa, car le comportement par
 
         x, y = self.coups_prep.popitem()[0]
         b = self.bataille.joue( (x, y) ) # si le coup touche
+
+        if not self.bataille.bateaux: # berk
+            return None
 
         if b:
             # on retire la possibilité de trouver b aux positions potentielles "plus loin" qu'une position ayant déjà étée jouée avec un autre bateau que b ait été découvert ou dont on à éliminé la possibilité de contenir b
@@ -676,60 +709,62 @@ class JoueurProba(Joueur):
                     mb = genere_mat_proba(self.bataille.bateaux[bb], pos)
 
                     for (i,j), p in self.coups_prep.items():
-                        p[bb] -= self.bataille.bateaux[bb] * mb[i][j]
+                        p[bb] -= self.bataille.bateaux[bb] * mb[i][j] # on coefficiente par la taille du bateau pour prioritiser la recherche dans les cases alentours immédiates
             
 
-        elif b is True:
+        elif b is True: # si le bateau est seulement touché
             for bb in self.bataille.bateaux.keys():
                 mb = genere_mat_proba(self.bataille.bateaux[bb], (x, y))
 
                 for (i,j), p in self.coups_prep.items():
                     p[bb] += self.bataille.bateaux[bb] * mb[i][j]
         
-        else:
+        else: # pas de bateau touché
             for bb in self.bataille.bateaux.keys():
                 mb = genere_mat_proba(self.bataille.bateaux[bb], (x, y))
 
                 for (i,j), p in self.coups_prep.items():
-                    p[bb] -= mb[i][j]
+                    p[bb] -= mb[i][j] # on soustrait la matrice de proba locale en x, y
 
         self.coups_joue[(x, y)] = b
 
         return (x, y)
 
 class Senseur():
-    def __init__(self, n, p,repar):
+    def __init__(self, n, p, repar):
         """
         Constructeur : initialise les dimensions, la matrice de probabilité et la repartition.
+
         Args :
             n (int) : nombre de lignes
             p (int) : nombre de colonnes
             repar (int) : repartition - 1 pour centree - 2 en bordure - 3 gauche nul - sinon aleatoire
         """
-        mat_p = self.genere_mat_proba_senseur(n,p,repar) #matrice de probabilite
-        self.place_senseur(n,p) #initialise l'attribut pos
+        mat_p = self.genere_mat_proba_senseur(n, p, repar) #matrice de probabilite
+        self.place_senseur(n, p) #initialise l'attribut pos
 
-    def place_senseur(self,n,p):
-        """
-        Initialise l'attribut pos qui correspond au tuple (i,j) représentant la position
-        du sous-marin
+    def place_senseur(self, n, p):
+        """Initialise l'attribut pos qui correspond au tuple (i,j) représentant la position du sous-marin
+        
         Args:
-        n (int) : nombre de lignes
-        p (int) : nombre de colonnes
+            n (int) : nombre de lignes
+            p (int) : nombre de colonnes
         """
-        s=0
+        s = 0
         k = random.random()
         for i in range(n):
             for j in range(p):
-                if (k < s + self.mat_p[i][j]):
-                    self.pos=(i,j)
+                if k < s + self.mat_p[i][j]:
+                    self.pos= (i, j)
                     return None
+
                 s = s + self.mat_p[i][j]
         print("Erreur place_senseur")
         return None
 
     def genere_mat_proba_senseur(self,n,p,repar):
         """Retourne une matrice de probabilité N*P selon une distribution repar.
+        
         Args : 
             n (int): nombre de lignes
             p (int): nombre de colonnes
@@ -737,18 +772,19 @@ class Senseur():
                     3 pour defavoriser le flanc gauche, sinon pour aleatoire
         """
         self.mat_p = np.empty((n,p), dtype=float)
-        c = (n+p)*50
+        c = (n+p) * 50
         #repartition aleatoire, repar = 0
         for i in range(n):
             for j in range(p):
-                self.mat_p[i][j]=float(random.randint(0,c))
-        if (repar==1):
+                self.mat_p[i][j] = float(random.randint(0, c))
+
+        if repar == 1:
         #repartition centree
-            for i in range(int(n/2),int(n/2+1)):
-                for j in range(int(p/2),int(p/2+1)):
-                    self.mat_p[i][j]=float(random.randint(4*c,6*c))
+            for i in range(int(n/2), int(n/2+1)):
+                for j in range(int(p/2), int(p/2+1)):
+                    self.mat_p[i][j] = float(random.randint(4*c,6*c))
         
-        elif (repar == 2):
+        elif repar == 2:
             #repartition bords
             for i in [0,n-1]:
                 for j in range(p):
@@ -756,19 +792,23 @@ class Senseur():
             for j in [0,n-1]:
                 for i in range(n):
                     self.mat_p[i][j]=float(random.randint(3*c,4*c))
-        elif (repar == 3):
+
+        elif repar == 3:
         #eviter le flanc gauche
             for i in range(n):
                 for j in range(2):
                     if (j<p):
-                        self.mat_p[i][j]=0
+                        self.mat_p[i][j] = 0
+
         d = np.sum(self.mat_p,dtype=float)
+
         for i in range (n):
             for j in range (p):
                 self.mat_p[i][j]= self.mat_p[i][j]/d
+
         return None
 
-    def cherche(self,ps):
+    def cherche(self, ps):
         """
         Cherche le sous-marin
         Args:
@@ -778,21 +818,19 @@ class Senseur():
         cpt=0
         
         while(True):
-            cpt+=1
-            (i,j) = np.unravel_index(np.argmax(self.mat_p), self.mat_p.shape)
-            if (i,j)==self.pos:
+            cpt += 1
+            (i, j) = np.unravel_index(np.argmax(self.mat_p), self.mat_p.shape)
+            if (i, j) == self.pos:
                 k = random.random()
                 if k < ps:
-                    print("Senseur trouvé en pos "+ str((i,j)))
+                    print("Senseur trouvé en pos {} ".format((i, j)))
                     return cpt
-            self.mat_p = self.mat_p / (1 - self.mat_p[i][j]*ps)
-            self.mat_p[i][j] *= 1-ps
-
-#s = Senseur(5,5,0)
-#print(s.cherche(0.1))
+            self.mat_p /= 1 - self.mat_p[i][j] * ps
+            self.mat_p[i][j] *= 1 - ps
 
 def partie(joueur):
-    bataille = Bataille(bateaux, genere_grille(bateaux))
+    b = boat.copy()
+    bataille = Bataille(b, genere_grille(b))
     joueur.participe(bataille)
     i = 0
 
@@ -811,7 +849,7 @@ def partie(joueur):
         
         affiche(joueur.bataille.grille_decouverte, ax1)
         
-        if isinstance(joueur, JoueurProba):
+        if isinstance(joueur, JoueurProba): # pour affficher la matrice de proba à côté
             m = np.zeros((10, 10))
             for k in range(10):
                 for l in range(10):
@@ -823,9 +861,9 @@ def partie(joueur):
             ax2.matshow(m, cmap='gray')
             plt.draw()
         
-        x, y = joueur.joue()
-        
-        print("Le joueur à joué en position ({}, {}):".format(x, y))
+        if pos := joueur.joue():
+            x, y = pos
+            print("Le joueur à joué en position ({}, {}):".format(x, y))
         
         grille_vise = joueur.bataille.grille_decouverte.copy()
         grille_vise[x][y] = np.nan
@@ -834,10 +872,19 @@ def partie(joueur):
         del grille_vise
 
         i += 1
-
+    
+    del b
     
     print("Le joueur à fini la partie en {} coups".format(i))
 
+def recherche_scorpion(taille_mat, rep):
+    senseur = Senseur(taille_mat, taille_mat, rep)
+    fia = int(input("Veuillez choisir la fiabilité du senseur [0-100]"))
+    fia /= 100
+    if fia < 0 or fia > 100:
+        raise ValueError("Mauvaise valeur de sensibilité")
+    n = senseur.cherche(fia)
+    print("Le senseur à trouvé l'USS Scorpion en {} coups".format(n))
 
 def main():
     print(len(sys.argv))
@@ -846,19 +893,74 @@ Le code des fonctions se trouve à la racine du projet dans le fichier bataille.
 Un jeu de test écrit avec le framework unittest est disponible dans le dossier test
 """)
 
-    print("""Veuillez séléctioner un joueur à faire jouer :
+    print(""""Que souhaitez vous faire?
+1 - Regarder un joueur jouer une partie en mode graphique
+2 - Tester l'éfficacité des joueurs
+3 - Partir à la recherche de l'USS Scorpion""")
+
+    choix = input("Votre choix : ")
+
+    if choix == "1":
+        print("""Veuillez séléctioner un joueur à faire jouer :
 1 - Joueur aléatoire
 2 - Joueur heuristique
 3 - Joueur probabiliste""")
 
-    no_joueur = input("Votre choix : ")
+        no_joueur = input("Votre choix : ")
 
-    if no_joueur == "1":
-        partie(JoueurAlea())
-    elif no_joueur == "2":
-        partie(JoueurHeur())
-    elif no_joueur == "3":
-        partie(JoueurProba())
+        if no_joueur == "1":
+            partie(JoueurAlea())
+        elif no_joueur == "2":
+            partie(JoueurHeur())
+        elif no_joueur == "3":
+            partie(JoueurProba())
+        else:
+            print("Votre séléction n'est pas valide")
+
+    elif choix == "2":
+
+        print("""Veuillez séléctioner un joueur à faire jouer :
+1 - Joueur aléatoire
+2 - Joueur heuristique
+3 - Joueur probabiliste""")
+
+        no_joueur = input("Votre choix : ")
+
+        if no_joueur == "1":
+            joueur = JoueurAlea()
+        elif no_joueur == "2":
+            joueur = JoueurHeur()
+        elif no_joueur == "3":
+            joueur = JoueurProba()
+        else:
+            print("Votre séléction n'est pas valide")
+
+        n = int(input("Veuillez choisir le nombre de répétitions à effectuer : "))
+        while n>0:
+
+            n -= 1
+            i = 0
+
+            b = boat.copy()
+
+            bataille = Bataille(b, genere_grille(b))
+            joueur.participe(bataille)
+
+            while not joueur.bataille.victoire():
+                joueur.joue()
+                i += 1
+            print(i)
+
+            del b
+
+
+    elif choix == "3":
+        t = int(input("Choisissez une taille de grille : "))
+        r = int(input("""Choisissez un mode de répartition :
+1 - Centree
+2 - Favoriser la bordure
+3 - Defavoriser le flanc gauche, sinon pour aleatoire"""))
+        recherche_scorpion(t, r)
     else:
         print("Votre séléction n'est pas valide")
 

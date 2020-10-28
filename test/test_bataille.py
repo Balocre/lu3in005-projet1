@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+import numpy.testing as nptst
 
 import os
 import sys
@@ -67,7 +68,7 @@ class TestBataille(unittest.TestCase):
         self.grille[3, 3:7] = 2
         self.grille[5:8, 4] = 3
         self.grille[7:9, 1] = 5
-        self.grille[5:10, 9] = 1
+        self.grille[6:10, 9] = 1
         #[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         # [0, 0, 4, 4, 4, 0, 0, 0, 0, 0],
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -85,7 +86,7 @@ class TestBataille(unittest.TestCase):
 
     def test_joue(self):
         self.assertNotEqual(self.bataille_init.grille[1][2], self.bataille_init.grille_decouverte[1][2])
-        self.assertEqual(self.bataille_init.joue( (1, 2) ), 4)
+        self.assertTrue(self.bataille_init.joue( (1, 2) ))
         self.assertEqual(self.bataille_init.grille[1][2], self.bataille_init.grille_decouverte[1][2])
 
         self.assertIsNone(self.bataille_init.joue( (0, 0) ))
@@ -195,20 +196,68 @@ class TestJoueurProba(unittest.TestCase):
         # [0, 5, 0, 0, 0, 0, 0, 0, 0, 1],
         # [0, 0, 0, 0, 0, 0, 0, 0, 0, 1]]
 
+        self.mat_proba_5 = np.matrix(
+        [[ 2,  3,  4,  5,  6,  6,  5,  4,  3,  2],
+        [ 3,  4,  5,  6,  7,  7,  6,  5,  4,  3],
+        [ 4,  5,  6,  7,  8,  8,  7,  6,  5,  4],
+        [ 5,  6,  7,  8,  9,  9,  8,  7,  6,  5],
+        [ 6,  7,  8,  9, 10, 10,  9,  8,  7,  6],
+        [ 6,  7,  8,  9, 10, 10,  9,  8,  7,  6],
+        [ 5,  6,  7,  8,  9,  9,  8,  7,  6,  5],
+        [ 4,  5,  6,  7,  8,  8,  7,  6,  5,  4],
+        [ 3,  4,  5,  6,  7,  7,  6,  5,  4,  3],
+        [ 2,  3,  4,  5,  6,  6,  5,  4,  3,  2]])
+
+        self.mat_proba_5_55 = np.matrix(
+        [[ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+        [ 0,  0,  0,  0,  0,  1,  0,  0,  0,  0],
+        [ 0,  0,  0,  0,  0,  2,  0,  0,  0,  0],
+        [ 0,  0,  0,  0,  0,  3,  0,  0,  0,  0],
+        [ 0,  0,  0,  0,  0,  4,  0,  0,  0,  0],
+        [ 0,  1,  2,  3,  4, 10,  4,  3,  2,  1],
+        [ 0,  0,  0,  0,  0,  4,  0,  0,  0,  0],
+        [ 0,  0,  0,  0,  0,  3,  0,  0,  0,  0],
+        [ 0,  0,  0,  0,  0,  2,  0,  0,  0,  0],
+        [ 0,  0,  0,  0,  0,  1,  0,  0,  0,  0]])
+
+        self.mat_proba_5_00 = np.matrix(
+        [[2., 1., 1., 1., 1., 0., 0., 0., 0., 0.],
+        [1., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [1., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [1., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [1., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]])
+
         self.joueur_proba = JoueurProba(Bataille(self.bateaux, self.grille))
+
+    def test_genere_mat_proba(self):
+        nptst.assert_array_equal(genere_mat_proba(5), self.mat_proba_5)
+        nptst.assert_array_equal(genere_mat_proba(5, (5, 5)), self.mat_proba_5_55)
+        nptst.assert_array_equal(genere_mat_proba(5, (0, 0)), self.mat_proba_5_00)
 
     def test_joue(self):
         pos_jouee = self.joueur_proba.joue()
         self.assertIsInstance(pos_jouee, tuple)
-        print("Le joueur à joué en position : {}".format(pos_jouee))
 
     def test_epuisement(self):
-        print("Liste des coups joués par le joueur aléaoire")
-        while c := self.joueur_proba.joue():
-            # affiche(self.joueur_proba.bataille.grille_decouverte)
-            print("{}".format(c))
+        while self.joueur_proba.joue():
+            pass
 
         self.assertTrue(self.joueur_proba.bataille.victoire())
+
+class TestSenseur(unittest.TestCase):
+    
+    def setUp(self):
+        self.senseur_1010 = Senseur(10, 10, 1)
+        self.senseur_55 = Senseur(5, 5, 1)
+
+    def test_senseur(self):
+        self.senseur_1010.cherche(0.1)
+        self.senseur_1010.cherche(0.5)
 
 if __name__ == '__main__':
     unittest.main()
