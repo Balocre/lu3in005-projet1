@@ -319,7 +319,7 @@ class Bataille:
 
     Args:
         bateaux (dict of int: int): Dictionnaire associant chaque bateau à sa taille.
-        grille (int[][]): Grille d'une batailel initialisée.
+        grille (int[][]): Grille d'une bataille initialisée.
 
 
     Attributes:
@@ -823,68 +823,73 @@ class Senseur():
             if (i, j) == self.pos:
                 k = random.random()
                 if k < ps:
-                    print("Senseur trouvé en pos {} ".format((i, j)))
+                    # print("Senseur trouvé en pos {} ".format((i, j)))
                     return cpt
             self.mat_p /= 1 - self.mat_p[i][j] * ps
             self.mat_p[i][j] *= 1 - ps
 
-def partie(joueur):
+def partie(joueur, disp=True):
     b = boat.copy()
     bataille = Bataille(b, genere_grille(b))
     joueur.participe(bataille)
     i = 0
 
-    plt.matshow(joueur.bataille.grille)
-    plt.waitforbuttonpress()
+    if disp:
+        plt.matshow(joueur.bataille.grille)
+        plt.waitforbuttonpress()
 
-    plt.ion()
+        plt.ion()
 
-    if isinstance(joueur, JoueurProba):
-            fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
+        if isinstance(joueur, JoueurProba):
+                fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2)
 
-    else :
-        fig, ax1 = plt.subplots(nrows=1, ncols=1)
+        else :
+            fig, ax1 = plt.subplots(nrows=1, ncols=1)
 
     while not joueur.bataille.victoire():
         
-        affiche(joueur.bataille.grille_decouverte, ax1)
+        if disp:
+            affiche(joueur.bataille.grille_decouverte, ax1)
         
-        if isinstance(joueur, JoueurProba): # pour affficher la matrice de proba à côté
-            m = np.zeros((10, 10))
-            for k in range(10):
-                for l in range(10):
-                    if((k, l) in joueur.coups_prep):
-                        m[k][l] = sum(joueur.coups_prep[(k, l)].values())
+            if isinstance(joueur, JoueurProba): # pour affficher la matrice de proba à côté
+                m = np.zeros((10, 10))
+                for k in range(10):
+                    for l in range(10):
+                        if((k, l) in joueur.coups_prep):
+                            m[k][l] = sum(joueur.coups_prep[(k, l)].values())
 
-            m = m/np.sum(m)
+                m = m/np.sum(m)
 
             ax2.matshow(m, cmap='gray')
             plt.draw()
         
         if pos := joueur.joue():
-            x, y = pos
-            print("Le joueur à joué en position ({}, {}):".format(x, y))
+            if disp:
+                x, y = pos
+                print("Le joueur à joué en position ({}, {}):".format(x, y))
         
-        grille_vise = joueur.bataille.grille_decouverte.copy()
-        grille_vise[x][y] = np.nan
+                grille_vise = joueur.bataille.grille_decouverte.copy()
+                grille_vise[x][y] = np.nan
         
-        affiche(grille_vise, ax1)
-        del grille_vise
+                affiche(grille_vise, ax1)
+                del grille_vise
 
         i += 1
     
     del b
-    
-    print("Le joueur à fini la partie en {} coups".format(i))
+
+    return i
 
 def recherche_scorpion(taille_mat, rep):
     senseur = Senseur(taille_mat, taille_mat, rep)
     fia = int(input("Veuillez choisir la fiabilité du senseur [0-100]"))
     fia /= 100
     if fia < 0 or fia > 100:
-        raise ValueError("Mauvaise valeur de sensibilité")
-    n = senseur.cherche(fia)
-    print("Le senseur à trouvé l'USS Scorpion en {} coups".format(n))
+         raise ValueError("Mauvaise valeur de sensibilité")
+    n = senseur.cherche(0.1)
+    # print("Le senseur à trouvé l'USS Scorpion en {} coups".format(n))
+
+    return n
 
 def main():
     print(len(sys.argv))
@@ -895,8 +900,7 @@ Un jeu de test écrit avec le framework unittest est disponible dans le dossier 
 
     print(""""Que souhaitez vous faire?
 1 - Regarder un joueur jouer une partie en mode graphique
-2 - Tester l'éfficacité des joueurs
-3 - Partir à la recherche de l'USS Scorpion""")
+2 - Partir à la recherche de l'USS Scorpion""")
 
     choix = input("Votre choix : ")
 
@@ -909,58 +913,25 @@ Un jeu de test écrit avec le framework unittest est disponible dans le dossier 
         no_joueur = input("Votre choix : ")
 
         if no_joueur == "1":
-            partie(JoueurAlea())
+            n = partie(JoueurAlea())
         elif no_joueur == "2":
-            partie(JoueurHeur())
+            n = partie(JoueurHeur())
         elif no_joueur == "3":
-            partie(JoueurProba())
+            n = partie(JoueurProba())
         else:
             print("Votre séléction n'est pas valide")
+
+        print("Le joueur à fini la partie en {} coups".format(n))
 
     elif choix == "2":
-
-        print("""Veuillez séléctioner un joueur à faire jouer :
-1 - Joueur aléatoire
-2 - Joueur heuristique
-3 - Joueur probabiliste""")
-
-        no_joueur = input("Votre choix : ")
-
-        if no_joueur == "1":
-            joueur = JoueurAlea()
-        elif no_joueur == "2":
-            joueur = JoueurHeur()
-        elif no_joueur == "3":
-            joueur = JoueurProba()
-        else:
-            print("Votre séléction n'est pas valide")
-
-        n = int(input("Veuillez choisir le nombre de répétitions à effectuer : "))
-        while n>0:
-
-            n -= 1
-            i = 0
-
-            b = boat.copy()
-
-            bataille = Bataille(b, genere_grille(b))
-            joueur.participe(bataille)
-
-            while not joueur.bataille.victoire():
-                joueur.joue()
-                i += 1
-            print(i)
-
-            del b
-
-
-    elif choix == "3":
         t = int(input("Choisissez une taille de grille : "))
         r = int(input("""Choisissez un mode de répartition :
 1 - Centree
 2 - Favoriser la bordure
 3 - Defavoriser le flanc gauche, sinon pour aleatoire"""))
-        recherche_scorpion(t, r)
+
+        m = recherche_scorpion(t, r)
+        print("Trouvé en :", m)
     else:
         print("Votre séléction n'est pas valide")
 
