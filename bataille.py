@@ -560,14 +560,13 @@ def genere_mat_proba(taille_bat, pos=None):
     else:
         r = np.zeros( (10, 10) )
         (x, y) = pos
-
-        for i in range(max(x-taille_bat+1, 0), min(x, 10-taille_bat+2)):
+        print("a ", max(x-taille_bat+1, 0), min(x+1, 10-taille_bat+1))
+        for i in range(max(x-taille_bat+1, 0), min(x+1, 10-taille_bat+1)):
             r[i:i+taille_bat+1, y] = [k+1 for k in r[i:i+taille_bat+1, y]]
-
-        for j in range(max(y-taille_bat+1, 0), min(y, 10-taille_bat+2)):
+        
+        print("b", max(y-taille_bat+1, 0), min(y+1, 10-taille_bat+1))
+        for j in range(max(y-taille_bat+1, 0), min(y+1, 10-taille_bat+1)):
             r[x, j:j+taille_bat+1] = [l+1 for l in r[x, j:j+taille_bat+1]]
-
-    r /= np.sum(r)
 
     return r
 
@@ -594,7 +593,7 @@ class JoueurProba(Joueur):
 
         self.coups_prep = dict()
         for (x, y) in [ pos for pos in itr.product(range(10), range(10)) ]:
-            self.coups_prep[(x, y)] = dict( map( lambda k: (k, self.bataille.bateaux[k] * m[k][x][y]), self.bataille.bateaux.keys() ) )
+            self.coups_prep[(x, y)] = dict( map( lambda k: (k, m[k][x][y]), self.bataille.bateaux.keys() ) )
 
         
             
@@ -620,7 +619,7 @@ class JoueurProba(Joueur):
             mb = genere_mat_proba(self.bataille.bateaux[b], (x, y))
 
             for (i,j), p in self.coups_prep.items():
-                p[b] = self.bataille.bateaux[b] * mb[i][j]
+                p[b] = mb[i][j]
         
         else:
             for b in self.bataille.bateaux.keys():
@@ -628,7 +627,7 @@ class JoueurProba(Joueur):
                 # affiche(mb)
 
                 for (i,j), p in self.coups_prep.items():
-                    p[b] -= self.bataille.bateaux[b] * mb[i][j]
+                    p[b] -= mb[i][j]
 
         # for (i,j), p in self.coups_prep.items():
         #     for bb in self.bataille.bateaux.keys():
@@ -752,19 +751,15 @@ def partie(joueur):
         affiche(joueur.bataille.grille_decouverte, ax1)
         if isinstance(joueur, JoueurProba):
             m = np.zeros((10, 10))
-            for i in range(10):
-                for j in range(10):
-                    if((i, j) in joueur.coups_prep):
-                        # m[i][j] = sum(joueur.coups_prep.get((i, j)).values())
-                        m[i][j] = joueur.coups_prep.get((i, j))[1]
+            for k in range(10):
+                for l in range(10):
+                    if((k, l) in joueur.coups_prep):
+                        m[k][l] = sum(joueur.coups_prep[(k, l)].values())
 
             m = m/np.sum(m)
-            for c, k in joueur.coups_prep.items():
-                print(c, k)
-            print(m)
+
             ax2.matshow(m, cmap='gray')
             plt.draw()
-            # ax2.clear()
         
         x, y = joueur.joue()
         
@@ -774,6 +769,7 @@ def partie(joueur):
         affiche(grille_vise, ax1)
         del grille_vise
 
+        print("i:", i)
         i += 1
 
     
